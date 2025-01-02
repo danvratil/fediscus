@@ -1,11 +1,11 @@
 [package]
 name = "fediscus"
 version = "0.1.0"
-edition = "2024"
+edition = "2021"
 
 [dependencies]
-activitypub_federation = { path="../activitypub-federation-rust", default-features = false, features = ["axum"] }
-#activitypub_federation = { version = "0.6", default-features = false, features = ["axum"] }
+#activitypub_federation = { path="../activitypub-federation-rust", default-features = false, features = ["axum"] }
+activitypub_federation = { version = "0.6", default-features = false, features = ["axum"] }
 anyhow = "1.0"
 async-trait = "0.1"
 axum = { version = "0.7", features = ["macros"] }

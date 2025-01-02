@@ -1,5 +1,3 @@
-#![feature(trivial_bounds)]
-
 use activitypub_federation::config::{FederationConfig, FederationMiddleware};
 use anyhow::{Error, anyhow};
 use axum::routing::{get, post};
