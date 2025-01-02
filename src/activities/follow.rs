@@ -4,6 +4,7 @@ use activitypub_federation::activity_queue::queue_activity;
 use activitypub_federation::config::Data;
 use activitypub_federation::error::Error as FederationError;
 use activitypub_federation::kinds::activity::FollowType;
+use activitypub_federation::protocol::context::WithContext;
 use activitypub_federation::traits::{Actor, Object};
 use activitypub_federation::{fetch::object_id::ObjectId, traits::ActivityHandler};
 use async_trait::async_trait;
@@ -57,7 +58,7 @@ pub enum FollowError {
 impl Follow {
     #[instrument(skip_all)]
     async fn reject_follow_request(&self, data: &Data<FederationData>) -> Result<(), FollowError> {
-        let reject = Reject::new(self.object.clone(), self.clone(), data);
+        let reject = WithContext::new_default(Reject::new(self.object.clone(), self.clone(), data));
         let actor = self.object.dereference_local(data).await?;
         let object = self.actor.dereference(data).await?;
         queue_activity(&reject, &actor, vec![object.shared_inbox_or_inbox()], data)
@@ -67,7 +68,7 @@ impl Follow {
 
     #[instrument(skip_all)]
     async fn accept_follow_request(&self, data: &Data<FederationData>) -> Result<(), FollowError> {
-        let accept = Accept::new(self.object.clone(), self.clone(), data);
+        let accept = WithContext::new_default(Accept::new(self.object.clone(), self.clone(), data));
         let actor = self.object.dereference_local(data).await?;
         let object = self.actor.dereference(data).await?;
         queue_activity(&accept, &actor, vec![object.shared_inbox_or_inbox()], data)
@@ -78,7 +79,7 @@ impl Follow {
     #[instrument(skip_all)]
     async fn follow_actor(&self, data: &Data<FederationData>) -> Result<(), FollowError> {
         // Send a follow activity back - we just swap the object and actor
-        let follow = Follow::new(self.object.clone(), self.actor.clone(), data);
+        let follow = WithContext::new_default(Follow::new(self.object.clone(), self.actor.clone(), data));
         let actor = self.object.dereference_local(data).await?;
         let object = self.actor.dereference(data).await?;
         queue_activity(&follow, &actor, vec![object.shared_inbox_or_inbox()], data)
