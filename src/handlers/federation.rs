@@ -53,7 +53,7 @@ impl TryFrom<DbPerson> for LocalUser {
 async fn get_local_user(data: &Data<FederationData>) -> Result<LocalUser, Error> {
     let user = sqlx::query!(
         r#"
-        SELECT uid FROM fediverse_account WHERE local = 1
+        SELECT uri FROM accounts WHERE local = 1
         "#,
     )
     .fetch_one(&data.db)
@@ -61,7 +61,7 @@ async fn get_local_user(data: &Data<FederationData>) -> Result<LocalUser, Error>
     .unwrap_or_else(|_| panic!("No local user found"));
 
     LocalUser::try_from(
-        DbPerson::read_from_id(Url::parse(&user.uid)?, &data)
+        DbPerson::read_from_id(Url::parse(&user.uri)?, &data)
             .await?
             .unwrap_or_else(|| panic!("No local user found")),
     )
@@ -174,7 +174,7 @@ pub async fn get_webfinger(
         let local_user = get_local_user(&data)
             .await
             .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-        if query.resource != format!("acct:{}@{}", local_user.username, local_user.instance) {
+        if query.resource != format!("acct:{}@{}", local_user.username, local_user.host) {
             return Err(StatusCode::NOT_FOUND);
         }
 
@@ -183,12 +183,12 @@ pub async fn get_webfinger(
             aliases: vec![
                 Url::parse(&format!(
                     "https://{}/{}",
-                    local_user.instance, local_user.username
+                    local_user.host, local_user.username
                 ))
                 .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?,
                 Url::parse(&format!(
                     "https://{}/users/{}",
-                    local_user.instance, local_user.username
+                    local_user.host, local_user.username
                 ))
                 .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?,
             ],
@@ -198,7 +198,7 @@ pub async fn get_webfinger(
                 href: Some(
                     Url::parse(&format!(
                         "https://{}/users/{}",
-                        local_user.instance, local_user.username
+                        local_user.host, local_user.username
                     ))
                     .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?,
                 ),

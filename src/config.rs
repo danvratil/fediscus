@@ -35,7 +35,7 @@ pub struct FediverseUser {
     /// The username of the user
     pub username: String,
     /// Name of the local instance
-    pub instance: String,
+    pub host: String,
     /// The display name of the user
     pub display_name: String,
     /// The RSA private key of the user in PEM format, the public key will be derived automatically

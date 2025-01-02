@@ -31,37 +31,33 @@ pub enum UserError {
 pub struct DbPerson {
     pub id: ObjectId<DbPerson>,
     pub username: String,
-    pub instance: String,
+    pub host: String,
     pub inbox: Url,
     pub outbox: Url,
     pub public_key: String,
     pub private_key: Option<String>,
     pub local: bool,
-    pub blocked: bool,
-    pub followed: bool,
 }
 
 impl DbPerson {
     pub fn new(
         username: String,
-        instance: String,
+        host: String,
         public_key: String,
         local: bool,
     ) -> Result<Self, UserError> {
-        let id = Url::parse(&format!("https://{}/{}", instance, username))?.into();
-        let inbox = Url::parse(&format!("https://{}/{}/inbox", instance, username))?;
-        let outbox = Url::parse(&format!("https://{}/{}/outbox", instance, username))?;
+        let id = Url::parse(&format!("https://{}/{}", host, username))?.into();
+        let inbox = Url::parse(&format!("https://{}/{}/inbox", host, username))?;
+        let outbox = Url::parse(&format!("https://{}/{}/outbox", host, username))?;
         Ok(Self {
             id,
             username,
-            instance,
+            host,
             inbox,
             outbox,
             public_key,
             private_key: None,
             local,
-            blocked: false,
-            followed: false,
         })
     }
 
@@ -69,9 +65,9 @@ impl DbPerson {
         name: &str,
         data: &Data<FederationData>,
     ) -> Result<Option<Self>, UserError> {
-        let instance = &data.config.fediverse_user.instance;
+        let instance = &data.config.fediverse_user.host;
         let id_for_name = sqlx::query!(
-            "SELECT uid FROM fediverse_account WHERE username = ? AND instance = ?",
+            "SELECT uri FROM accounts WHERE username = ? AND host = ?",
             name,
             instance
         )
@@ -79,7 +75,7 @@ impl DbPerson {
         .await
         .map_err(UserError::SqlError)?;
 
-        DbPerson::read_from_id(Url::parse(&id_for_name.uid)?, data).await
+        DbPerson::read_from_id(Url::parse(&id_for_name.uri)?, data).await
     }
 }
 
@@ -109,9 +105,9 @@ impl Object for DbPerson {
         let db = &data.db;
         let id = object_id.as_str();
         let row = sqlx::query!(
-            "SELECT username, instance, inbox, outbox, private_key, public_key, local, blocked, followed \
-             FROM fediverse_account \
-             WHERE uid = ?",
+            "SELECT username, host, inbox, outbox, private_key, public_key, local \
+             FROM accounts \
+             WHERE uri = ?",
             id
         )
         .fetch_one(db)
@@ -128,14 +124,12 @@ impl Object for DbPerson {
                 Ok(Some(DbPerson {
                     id: object_id.into(),
                     username: row.username,
-                    instance: row.instance,
+                    host: row.host,
                     inbox: Url::parse(&row.inbox)?,
                     outbox: Url::parse(&row.outbox)?,
                     public_key: row.public_key,
                     private_key: row.private_key,
                     local: row.local,
-                    blocked: row.blocked,
-                    followed: row.followed,
                 }))
             }
             Err(sqlx::Error::RowNotFound) => {
@@ -159,14 +153,12 @@ impl Object for DbPerson {
         Ok(DbPerson {
             id: json.id.clone(),
             username: json.preferred_username,
-            instance: json.id.inner().host_str().unwrap().to_string(),
+            host: json.id.inner().host_str().unwrap().to_string(),
             inbox: json.inbox,
             outbox: json.outbox,
             public_key: json.public_key.public_key_pem,
             private_key: None,
             local: false,
-            blocked: false,
-            followed: false,
         })
     }
 

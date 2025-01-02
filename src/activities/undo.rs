@@ -3,6 +3,7 @@ use activitypub_federation::kinds::activity::UndoType;
 use activitypub_federation::{fetch::object_id::ObjectId, traits::ActivityHandler};
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
+use tracing::debug;
 use url::Url;
 
 use crate::FederationData;
@@ -48,7 +49,12 @@ impl ActivityHandler for Undo {
     }
 
     async fn receive(self, _data: &Data<Self::DataType>) -> Result<(), Self::Error> {
-        println!("Received unfollow request from {:?}", self.actor);
+
+
+
+        debug!("Received unfollow request from {:?}", self.actor);
+        debug!("Follow obj {:?}", self);
+
         Ok(())
     }
 }

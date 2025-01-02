@@ -92,22 +92,20 @@ impl Follow {
         let actor = self.actor.dereference_forced(data).await?;
         let inbox = actor.inbox.as_str();
         let outbox = actor.outbox.as_str();
-        let uid = actor.id.inner().as_str();
+        let uri = actor.id.inner().as_str();
         let query = sqlx::query!(
             "
-            INSERT OR REPLACE INTO fediverse_account \
-            (username, instance, uid, inbox, outbox, public_key, local, blocked, followed) \
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT OR REPLACE INTO accounts \
+            (username, host, uri, inbox, outbox, public_key, local) \
+            VALUES (?, ?, ?, ?, ?, ?, ?)
         ",
             actor.username,
-            actor.instance,
-            uid,
+            actor.host,
+            uri,
             inbox,
             outbox,
             actor.public_key,
             false,
-            false,
-            false
         );
         query
             .execute(&data.db)
@@ -149,18 +147,13 @@ impl ActivityHandler for Follow {
         match actor {
             // We have an existing record of the person
             Some(actor) => {
-                if actor.blocked {
-                    // If the actor is blocked on our side, we reject the follow request.
-                    self.reject_follow_request(data).await
+                // We accept the follow request, even if its a duplicate
+                self.accept_follow_request(data).await?;
+                if !actor.followed {
+                    // If we don't follow the actor yet, follow them back
+                    self.follow_actor(data).await
                 } else {
-                    // We accept the follow request, even if its a duplicate
-                    self.accept_follow_request(data).await?;
-                    if !actor.followed {
-                        // If we don't follow the actor yet, follow them back
-                        self.follow_actor(data).await
-                    } else {
-                        Ok(())
-                    }
+                    Ok(())
                 }
             },
             // We never heard of this person before

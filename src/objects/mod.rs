@@ -1,3 +1,3 @@
 mod user;
 
-pub use user::{DbPerson, Person, UserError};
+pub use user::{DbPerson, UserError};

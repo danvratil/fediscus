@@ -10,7 +10,7 @@ database:
 
 fediverse-user:
   username: fediscus.test
-  instance: fediscus.net
+  host: fediscus.net
   display-name: Fediscus Test
   private-key: |
     -----BEGIN PRIVATE KEY-----

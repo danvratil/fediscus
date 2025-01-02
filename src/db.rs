@@ -6,6 +6,10 @@ use url::Url;
 
 use crate::types::Post;
 
+mod uri;
+
+pub use uri::Uri;
+
 #[derive(Error, Debug)]
 pub enum DbError {
     #[error("SQL error: {0}")]
@@ -14,6 +18,7 @@ pub enum DbError {
     Url(url::ParseError),
 }
 
+/*
 pub async fn get_counts(
     pool: &sqlx::SqlitePool,
     posts: &Vec<Post>,
@@ -48,7 +53,8 @@ pub async fn get_counts(
         .collect();
 
     Ok((counts, misses))
-}
+}iid
+*/
 
 fn derive_public_key_pem(private_key: &str) -> Result<String, anyhow::Error> {
     RsaPrivateKey::from_pkcs8_pem(private_key)?
@@ -63,10 +69,10 @@ pub async fn init_local_user(
 ) -> Result<(), anyhow::Error> {
     let account = sqlx::query!(
         "SELECT id, local \
-         FROM fediverse_account \
-         WHERE username = ? AND instance = ?",
+         FROM accounts \
+         WHERE username = ? AND host = ?",
         config.username,
-        config.instance
+        config.host
     )
     .fetch_optional(pool)
     .await
@@ -75,7 +81,7 @@ pub async fn init_local_user(
     let exists = match account {
         Some(account) => {
             if !account.local {
-                sqlx::query!("DELETE FROM fediverse_account WHERE id = ?", account.id)
+                sqlx::query!("DELETE FROM accounts WHERE id = ?", account.id)
                     .execute(pool)
                     .await
                     .map_err(DbError::Sqlx)?;
@@ -90,31 +96,29 @@ pub async fn init_local_user(
     if !exists {
         let inbox = format!(
             "https://{}/users/{}/inbox",
-            config.instance, config.username
+            config.host, config.username
         );
         let outbox = format!(
             "https://{}/users/{}/outbox",
-            config.instance, config.username
+            config.host, config.username
         );
-        let uid = format!(
+        let uri = format!(
             "https://{}/users/{}",
-            config.instance, config.username
+            config.host, config.username
         );
         let public_key = derive_public_key_pem(&config.private_key)?;
         sqlx::query!(
-            "INSERT INTO fediverse_account \
-             (uid, username, instance, inbox, outbox, private_key, public_key, local, blocked, followed) \
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-            uid, 
+            "INSERT INTO accounts \
+             (uri, username, host, inbox, outbox, private_key, public_key, local) \
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            uri,
             config.username,
-            config.instance,
+            config.host,
             inbox,
             outbox,
             config.private_key,
             public_key,
             true,
-            false,
-            false
         )
         .execute(pool)
         .await
