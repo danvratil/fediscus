@@ -11,7 +11,6 @@ mod config;
 mod db;
 mod handlers;
 mod types;
-mod objects;
 mod activities;
 mod storage;
 mod apub;

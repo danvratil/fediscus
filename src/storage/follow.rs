@@ -1,9 +1,13 @@
+use activitypub_federation::traits::Object;
+use activitypub_federation::config::Data;
 use async_trait::async_trait;
-use sqlx::types::chrono::{DateTime, Utc};
+use chrono::NaiveDateTime;
 use thiserror::Error;
 use url::Url;
 
-use super::account::AccountId;
+use crate::{apub, db::Uri, FederationData};
+
+use super::{account::AccountId, AccountError};
 
 #[derive(Debug, Error)]
 pub enum FollowError {
@@ -11,20 +15,32 @@ pub enum FollowError {
     AlreadyExists,
     #[error("Follow not found")]
     NotFound,
+    #[error("Invalid account")]
+    InvalidAccount(#[from] AccountError),
     #[error("Sql Error: {0}")]
     SqlError(sqlx::Error),
+    #[error("Activity error {0}")]
+    ActivityError(#[from] activitypub_federation::error::Error),
 }
 
 #[derive(sqlx::Type, Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[sqlx(transparent)]
 pub struct FollowId(i64);
+
+impl Into<FollowId> for i64 {
+    fn into(self) -> FollowId{
+        FollowId(self)
+    }
+}
 
 #[derive(Debug, Clone)]
 pub struct Follow {
     pub id: FollowId,
-    pub created_at: DateTime<Utc>,
+    pub created_at: NaiveDateTime,
     pub account_id: AccountId,
     pub target_account_id: AccountId,
-    pub uri: Url,
+    pub uri: Uri,
+    pub pending: bool,
 }
 
 #[async_trait]
@@ -33,7 +49,8 @@ pub trait FollowStorage {
         &self,
         account_id: AccountId,
         target_account_id: AccountId,
-        uri: &Url,
+        uri: &Uri,
+        pending: bool,
     ) -> Result<Follow, FollowError>;
 
     async fn follows_by_account_id(
@@ -41,7 +58,69 @@ pub trait FollowStorage {
         account_id: AccountId,
     ) -> Result<Vec<Follow>, FollowError>;
 
-    async fn follow_by_uri(&self, uri: &Url) -> Result<Option<Follow>, FollowError>;
+    async fn follow_by_uri(&self, uri: &Uri) -> Result<Option<Follow>, FollowError>;
 
-    async fn delete_follow_by_uri(&self, uri: &Url) -> Result<(), FollowError>;
+    async fn delete_follow_by_uri(&self, uri: &Uri) -> Result<(), FollowError>;
+
+    async fn follow_accepted(&self, uri: &Uri) -> Result<(), FollowError>;
+}
+
+
+#[async_trait]
+impl Object for Follow {
+    type DataType = FederationData;
+    type Kind = apub::Follow;
+    type Error = FollowError;
+
+    async fn read_from_id(
+        object_id: Url,
+        data: &Data<Self::DataType>,
+    ) -> Result<Option<Self>, Self::Error> {
+        data.storage.follow_by_uri(&object_id.into()).await
+    }
+
+    async fn into_json(self, data: &Data<Self::DataType>) -> Result<Self::Kind, Self::Error> {
+        let account = data
+            .storage
+            .account_by_id(self.account_id)
+            .await
+            .map_err(FollowError::InvalidAccount)?
+            .ok_or(FollowError::NotFound)?;
+        let target_account = data
+            .storage
+            .account_by_id(self.target_account_id)
+            .await
+            .map_err(FollowError::InvalidAccount)?
+            .ok_or(FollowError::NotFound)?;
+        Ok(apub::Follow::new(
+            account.uri.into(),
+            target_account.uri.into(),
+            self.uri.into(),
+        ))
+    }
+
+    /// Creates a new follow from the given JSON object. The state is set to pending.
+    async fn from_json(json: Self::Kind, data: &Data<Self::DataType>) -> Result<Self, Self::Error> {
+        let actor = json
+            .actor
+            .dereference(data)
+            .await
+            .map_err(FollowError::InvalidAccount)?;
+        let object = json
+            .object
+            .dereference(data)
+            .await
+            .map_err(FollowError::InvalidAccount)?;
+        data.storage
+            .new_follow(actor.id, object.id, &json.id.into_inner().into(), true)
+            .await
+    }
+
+    async fn verify(
+        _json: &Self::Kind,
+        _expected_domain: &Url,
+        _data: &Data<Self::DataType>,
+    ) -> Result<(), Self::Error> {
+        Ok(())
+    }
 }

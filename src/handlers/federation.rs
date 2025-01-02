@@ -18,30 +18,31 @@ use axum::{
 };
 use hyperx::header::{Accept, Header, Raw};
 use serde::{Deserialize, Serialize};
+use tracing::error;
 use url::Url;
 
-use crate::objects::DbPerson;
-use crate::{AppState, FederationData, activities};
+use crate::apub;
+use crate::{activities, storage, AppState, FederationData};
 
 #[derive(Clone, Debug)]
-pub struct LocalUser(DbPerson);
+pub struct LocalUser(storage::Account);
 
 impl Deref for LocalUser {
-    type Target = DbPerson;
+    type Target = storage::Account;
     fn deref(&self) -> &Self::Target {
         &self.0
     }
 }
 
 impl LocalUser {
-    pub fn into_db_person(self) -> DbPerson {
+    pub fn into_account(self) -> storage::Account {
         self.0
     }
 }
 
-impl TryFrom<DbPerson> for LocalUser {
+impl TryFrom<storage::Account> for LocalUser {
     type Error = Error;
-    fn try_from(value: DbPerson) -> Result<Self, Self::Error> {
+    fn try_from(value: storage::Account) -> Result<Self, Self::Error> {
         if value.local {
             Ok(Self(value))
         } else {
@@ -51,29 +52,17 @@ impl TryFrom<DbPerson> for LocalUser {
 }
 
 async fn get_local_user(data: &Data<FederationData>) -> Result<LocalUser, Error> {
-    let user = sqlx::query!(
-        r#"
-        SELECT uri FROM accounts WHERE local = 1
-        "#,
-    )
-    .fetch_one(&data.db)
-    .await
-    .unwrap_or_else(|_| panic!("No local user found"));
-
-    LocalUser::try_from(
-        DbPerson::read_from_id(Url::parse(&user.uri)?, &data)
-            .await?
-            .unwrap_or_else(|| panic!("No local user found")),
-    )
+    let account = data.storage.get_local_account().await?;
+    LocalUser::try_from(account)
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(untagged)]
 #[enum_delegate::implement(ActivityHandler)]
 enum LocalUserAcceptedActivities {
-    Follow(activities::Follow),
-    Accept(activities::Accept),
-    Reject(activities::Reject),
+    Follow(apub::Follow),
+    Accept(apub::AcceptFollow),
+    Reject(apub::RejectFollow),
     Undo(activities::Undo),
 }
 
@@ -97,7 +86,7 @@ pub async fn get_user(
         }
 
         let json_user = local_user
-            .into_db_person()
+            .into_account()
             .into_json(&data)
             .await
             .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
@@ -113,7 +102,7 @@ pub async fn post_inbox(
     data: Data<FederationData>,
     activity_data: ActivityData,
 ) -> impl IntoResponse {
-    receive_activity::<WithContext<LocalUserAcceptedActivities>, DbPerson, FederationData>(
+    receive_activity::<WithContext<LocalUserAcceptedActivities>, storage::Account, FederationData>(
         activity_data,
         &data,
     )
@@ -148,14 +137,23 @@ pub async fn get_outbox(
     Path((name, )): Path<(String,)>,
     data: Data<FederationData>,
 ) -> impl IntoResponse {
-    let person = DbPerson::read_from_name(&name, &data)
+    let local_user = get_local_user(&data)
         .await
-        .map_err(|_| StatusCode::NOT_FOUND)?;
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
-    if let Some(person) = person {
-        Ok(FederationJson(APubOutbox::empty(person.outbox)))
-    } else {
-        Err(StatusCode::NOT_FOUND)
+    if name != local_user.username {
+        return Err(StatusCode::NOT_FOUND);
+    }
+
+    match &local_user.outbox {
+        Some(outbox) => {
+            let outbox = APubOutbox::empty(outbox.clone().into());
+            Ok(FederationJson(WithContext::new_default(outbox)).into_response())
+        },
+        None => {
+            error!("Local account without valid outbox URL");
+            Err(StatusCode::INTERNAL_SERVER_ERROR)
+        }
     }
 }
 

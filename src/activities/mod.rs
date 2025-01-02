@@ -1,29 +1,25 @@
-use activitypub_federation::config::{Data, FederationConfig};
+use activitypub_federation::config::Data;
 use thiserror::Error;
 
-mod accept;
+mod accept_follow;
 mod follow;
-mod reject;
-mod undo;
+mod reject_follow;
+mod undo_follow;
 
 #[derive(Error, Debug)]
 pub enum ActivityError {
-    #[error("Error handling incoming activity")]
+    #[error("Error handling incoming activity {0}")]
     InboxError(#[from] activitypub_federation::error::Error),
-    #[error("Follow activity error")]
+    #[error("Follow activity error {0}")]
     FollowError(#[from] follow::FollowError),
-    #[error("Accept activity error")]
-    AcceptError(#[from] accept::AcceptError),
-    #[error("Unknown error")]
+    #[error("Accept activity error {0}")]
+    AcceptError(#[from] accept_follow::AcceptError),
+    #[error("Reject activity error {0}")]
+    RejectError(#[from] reject_follow::RejectError),
+    #[error("Unknown error {0}")]
     UnknownError(#[from] anyhow::Error),
-    #[error("User error")]
-    UserError(#[from] crate::objects::UserError),
 }
 
-pub use accept::Accept;
-pub use follow::Follow;
-pub use reject::Reject;
-pub use undo::Undo;
 use url::Url;
 use uuid::Uuid;
 

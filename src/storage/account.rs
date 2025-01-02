@@ -4,7 +4,7 @@ use activitypub_federation::protocol::verification;
 use activitypub_federation::traits::Actor;
 use activitypub_federation::{kinds::actor::PersonType, traits::Object};
 use async_trait::async_trait;
-use chrono::NaiveDateTime;
+use chrono::{DateTime, NaiveDateTime, Utc};
 use thiserror::Error;
 use url::Url;
 
@@ -59,7 +59,7 @@ impl Object for Account {
         object_id: Url,
         data: &Data<Self::DataType>,
     ) -> Result<Option<Self>, Self::Error> {
-        data.storage.account_by_uri(&object_id).await
+        data.storage.account_by_uri(&object_id.into()).await
     }
 
     async fn from_json(json: Self::Kind, data: &Data<Self::DataType>) -> Result<Self, Self::Error> {
@@ -90,6 +90,10 @@ impl Object for Account {
     ) -> Result<(), Self::Error> {
         verification::verify_domains_match(json.id.inner(), expected_domain)
             .map_err(AccountError::UrlVerificationError)
+    }
+
+    fn last_refreshed_at(&self) -> Option<DateTime<Utc>> {
+        Some(self.updated_at.and_utc())
     }
 }
 
@@ -122,6 +126,8 @@ pub trait AccountStorage {
     async fn account_by_id(&self, id: AccountId) -> Result<Option<Account>, AccountError>;
 
     async fn account_by_uri(&self, uri: &Uri) -> Result<Option<Account>, AccountError>;
+
+    async fn get_local_account(&self) -> Result<Account, AccountError>;
 
     async fn update_or_insert_account(
         &self,

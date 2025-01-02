@@ -8,6 +8,12 @@ use url::Url;
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Uri(Url);
 
+impl Uri {
+    pub fn as_url(&self) -> &Url {
+        &self.0
+    }
+}
+
 impl Deref for Uri {
     type Target = Url;
 
@@ -57,11 +63,18 @@ impl TryFrom<String> for Uri {
     }
 }
 
+impl From<Url> for Uri {
+    fn from(value: Url) -> Self {
+        Self(value)
+    }
+}
+
 impl Into<Url> for Uri {
     fn into(self) -> Url {
         self.0
     }
 }
+
 
 impl<'de, T> Into<ObjectId<T>> for Uri
 where
