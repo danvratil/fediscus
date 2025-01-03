@@ -60,6 +60,12 @@ pub trait FollowStorage {
 
     async fn follow_by_uri(&self, uri: &Uri) -> Result<Option<Follow>, FollowError>;
 
+    async fn follow_by_ids(
+        &self,
+        account_id: AccountId,
+        target_account_id: AccountId,
+    ) -> Result<Option<Follow>, FollowError>;
+
     async fn delete_follow_by_uri(&self, uri: &Uri) -> Result<(), FollowError>;
 
     async fn follow_accepted(&self, uri: &Uri) -> Result<(), FollowError>;
@@ -114,6 +120,10 @@ impl Object for Follow {
         data.storage
             .new_follow(actor.id, object.id, &json.id.into_inner().into(), true)
             .await
+    }
+
+    async fn delete(self, data: &Data<Self::DataType>) -> Result<(), Self::Error> {
+        data.storage.delete_follow_by_uri(&self.uri).await
     }
 
     async fn verify(

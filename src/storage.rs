@@ -3,7 +3,7 @@ mod follow;
 use async_trait::async_trait;
 
 pub use account::{Account, AccountError, AccountId, AccountStorage};
-pub use follow::{Follow, FollowError, FollowId, FollowStorage};
+pub use follow::{Follow, FollowError, FollowStorage};
 
 
 #[async_trait]

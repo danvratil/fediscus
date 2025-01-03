@@ -22,7 +22,7 @@ use tracing::error;
 use url::Url;
 
 use crate::apub;
-use crate::{activities, storage, AppState, FederationData};
+use crate::{storage, AppState, FederationData};
 
 #[derive(Clone, Debug)]
 pub struct LocalUser(storage::Account);
@@ -63,7 +63,7 @@ enum LocalUserAcceptedActivities {
     Follow(apub::Follow),
     Accept(apub::AcceptFollow),
     Reject(apub::RejectFollow),
-    Undo(activities::Undo),
+    Undo(apub::UndoFollow),
 }
 
 #[axum::debug_handler]

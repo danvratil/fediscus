@@ -319,7 +319,7 @@ impl FollowStorage for SqliteStorage {
     async fn follow_by_uri(&self, uri: &Uri) -> Result<Option<Follow>, FollowError> {
         sqlx::query_as!(
             Follow,
-            r#"SELECT 
+            r#"SELECT
                 id,
                 created_at,
                 account_id,
@@ -336,6 +336,30 @@ impl FollowStorage for SqliteStorage {
         .map_err(FollowError::SqlError)
     }
 
+    async fn follow_by_ids(
+        &self,
+        account_id: AccountId,
+        target_account_id: AccountId,
+    ) -> Result<Option<Follow>, FollowError> {
+        sqlx::query_as!(
+            Follow,
+            r#"SELECT
+                id,
+                created_at,
+                account_id,
+                target_account_id,
+                uri AS "uri: _",
+                pending
+            FROM follows
+            WHERE account_id = ? AND target_account_id = ?
+            "#,
+            account_id,
+            target_account_id
+        )
+        .fetch_optional(&self.db)
+        .await
+        .map_err(FollowError::SqlError)
+    }
     async fn delete_follow_by_uri(&self, uri: &Uri) -> Result<(), FollowError> {
         let uri = uri.as_str();
         sqlx::query!(r#"DELETE FROM follows WHERE uri = ?"#, uri)

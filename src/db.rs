@@ -1,16 +1,12 @@
 use rsa::{RsaPrivateKey, pkcs8::{DecodePrivateKey, EncodePublicKey}};
-use sqlx::Row;
-use std::collections::HashMap;
 use thiserror::Error;
-use url::Url;
-
-use crate::types::Post;
 
 mod uri;
 
 pub use uri::Uri;
 
 #[derive(Error, Debug)]
+#[allow(dead_code)]
 pub enum DbError {
     #[error("SQL error: {0}")]
     Sqlx(sqlx::Error),

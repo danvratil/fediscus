@@ -7,7 +7,7 @@ use activitypub_federation::protocol::context::WithContext;
 use activitypub_federation::traits::{ActivityHandler, Actor, Object};
 use async_trait::async_trait;
 use thiserror::Error;
-use tracing::{instrument, warn};
+use tracing::{instrument, warn, info};
 use url::Url;
 
 use crate::apub::{AcceptFollow, Follow};
@@ -75,6 +75,7 @@ impl ActivityHandler for Follow {
 
     #[instrument(name="follow_receive", skip_all, fields(actor=%self.actor.inner(), object=%self.object.inner()))]
     async fn receive(self, data: &Data<Self::DataType>) -> Result<(), Self::Error> {
+        info!("Received follow request from {}", self.actor.inner());
         let actor = self
             .actor
             .dereference(data)
