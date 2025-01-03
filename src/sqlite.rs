@@ -2,7 +2,7 @@ use crate::{
     config::Database,
     storage::{
         Account, AccountError, AccountId, AccountStorage, Blog, BlogError, BlogId, BlogStorage,
-        Follow, FollowError, FollowStorage, Post, PostError, PostId, PostStorage, Storage,
+        Follow, FollowError, FollowStorage, Note, NoteError, NoteId, NoteStorage, Storage,
     },
 };
 
@@ -472,15 +472,15 @@ impl BlogStorage for SqliteStorage {
 }
 
 #[async_trait]
-impl PostStorage for SqliteStorage {
+impl NoteStorage for SqliteStorage {
     async fn new_post(
         &self,
         account_id: AccountId,
         uri: Uri,
-        reply_to_id: Option<PostId>,
-        root_id: Option<PostId>,
+        reply_to_id: Option<NoteId>,
+        root_id: Option<NoteId>,
         blog_id: BlogId,
-    ) -> Result<Post, PostError> {
+    ) -> Result<Note, NoteError> {
         let id = sqlx::query_scalar!(
             r#"INSERT INTO posts (
                 account_id,
@@ -500,7 +500,7 @@ impl PostStorage for SqliteStorage {
         )
         .fetch_one(&self.db)
         .await
-        .map_err(PostError::SqlError)?
+        .map_err(NoteError::SqlError)?
         .into();
 
         match self.post_by_id(id).await? {
@@ -514,15 +514,15 @@ impl PostStorage for SqliteStorage {
                 #[cfg(not(debug_assertions))]
                 {
                     error!("Failed to retrieve just-created post");
-                    Err(PostError::NotFound)
+                    Err(NoteError::NotFound)
                 }
             }
         }
     }
 
-    async fn post_by_id(&self, id: PostId) -> Result<Option<Post>, PostError> {
+    async fn post_by_id(&self, id: NoteId) -> Result<Option<Note>, NoteError> {
         sqlx::query_as!(
-            Post,
+            Note,
             r#"SELECT
                 id AS "id: _",
                 created_at AS "created_at: _",
@@ -538,12 +538,12 @@ impl PostStorage for SqliteStorage {
         )
         .fetch_optional(&self.db)
         .await
-        .map_err(PostError::SqlError)
+        .map_err(NoteError::SqlError)
     }
 
-    async fn post_by_uri(&self, uri: &Uri) -> Result<Option<Post>, PostError> {
+    async fn post_by_uri(&self, uri: &Uri) -> Result<Option<Note>, NoteError> {
         sqlx::query_as!(
-            Post,
+            Note,
             r#"SELECT
                 id AS "id: _",
                 created_at AS "created_at: _",
@@ -559,14 +559,14 @@ impl PostStorage for SqliteStorage {
         )
         .fetch_optional(&self.db)
         .await
-        .map_err(PostError::SqlError)
+        .map_err(NoteError::SqlError)
     }
 
-    async fn delete_post_by_id(&self, id: PostId) -> Result<(), PostError> {
+    async fn delete_post_by_id(&self, id: NoteId) -> Result<(), NoteError> {
         sqlx::query!(r#"DELETE FROM posts WHERE id = ?"#, id)
             .execute(&self.db)
             .await
-            .map_err(PostError::SqlError)?;
+            .map_err(NoteError::SqlError)?;
         Ok(())
     }
 }
