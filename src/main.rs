@@ -1,3 +1,8 @@
+// SPDX-FileCopyrightText: 2024 Daniel Vrátil <me@dvratil.cz>
+// SPDX-FileCopyrightText: 2025 Daniel Vrátil <me@dvratil.cz>
+//
+// SPDX-License-Identifier: MIT
+
 use activitypub_federation::config::{FederationConfig, FederationMiddleware};
 use anyhow::{Error, anyhow};
 use axum::routing::{get, post};

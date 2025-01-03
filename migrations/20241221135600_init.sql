@@ -1,3 +1,7 @@
+-- SPDX-FileCopyrightText: 2025 Daniel Vrátil <me@dvratil.cz>
+--
+-- SPDX-License-Identifier: MIT
+
 CREATE TABLE accounts (
     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
     created_at DATETIME DEFAULT (DATETIME('now')) NOT NULL,
