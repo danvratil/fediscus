@@ -19,13 +19,36 @@ CREATE INDEX accounts_username ON accounts(username);
 CREATE TABLE follows (
     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
     created_at DATETIME DEFAULT (DATETIME('now')) NOT NULL,
-    account_id BIGINT NOT NULL, -- who is following
-    target_account_id BIGINT NOT NULL, -- who is being followed
+    account_id INTEGER NOT NULL, -- who is following
+    target_account_id INTEGER NOT NULL, -- who is being followed
     pending BOOLEAN NOT NULL, -- pending acceptance
     uri VARCHAR(255) NOT NULL,
 
-    FOREIGN KEY (account_id) REFERENCES accounts(id),
-    FOREIGN KEY (target_account_id) REFERENCES accounts(id),
+    FOREIGN KEY (account_id) REFERENCES accounts(id) ON DELETE CASCADE,
+    FOREIGN KEY (target_account_id) REFERENCES accounts(id) ON DELETE CASCADE,
     UNIQUE (account_id, target_account_id)
 );
-;
+
+CREATE TABLE blogs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    created_at DATETIME DEFAULT (DATETIME('now')) NOT NULL,
+    url VARCHAR(255) NOT NULL,
+
+    UNIQUE (url)
+);
+
+CREATE TABLE posts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    created_at DAETTIME DEFAULT (DATETIME('now')) NOT NULL,
+    updated_at DATETIME DEFAULT (DATETIME('now')) NOT NULL,
+    account_id INTEGER NOT NULL, -- author
+    uri VARCHAR(255) NOT NULL,
+    reply_to_id INTEGER NULL, -- reply to
+    root_id INTEGER NULL, -- root post
+    blog_id INTEGER NOT NULL, -- blog post
+
+    FOREIGN KEY (account_id) REFERENCES accounts(id) ON DELETE CASCADE,
+    FOREIGN KEY (reply_to_id) REFERENCES posts(id) ON DELETE CASCADE,
+    FOREIGN KEY (root_id) REFERENCES posts(id) ON DELETE CASCADE,
+    FOREIGN KEY (blog_id) REFERENCES blogs(id) ON DELETE CASCADE
+);

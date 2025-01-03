@@ -1,8 +1,8 @@
 use crate::{
     config::Database,
     storage::{
-        Account, AccountError, AccountId, AccountStorage, Follow, FollowError,
-        FollowStorage, Storage,
+        Account, AccountError, AccountId, AccountStorage, Blog, BlogError, BlogId, BlogStorage,
+        Follow, FollowError, FollowStorage, Post, PostError, PostId, PostStorage, Storage,
     },
 };
 
@@ -10,6 +10,7 @@ use crate::db::Uri;
 use async_trait::async_trait;
 use thiserror::Error;
 use tracing::error;
+use url::Url;
 
 use crate::apub;
 
@@ -375,6 +376,197 @@ impl FollowStorage for SqliteStorage {
             .execute(&self.db)
             .await
             .map_err(FollowError::SqlError)?;
+        Ok(())
+    }
+}
+
+#[async_trait]
+impl BlogStorage for SqliteStorage {
+    async fn new_blog(&self, url: &Url) -> Result<Blog, BlogError> {
+        let url = url.as_str();
+        let id = sqlx::query_scalar!(r#"INSERT INTO blogs (url) VALUES (?) RETURNING id"#, url)
+            .fetch_one(&self.db)
+            .await
+            .map_err(BlogError::SqlError)?
+            .into();
+
+        match self.blog_by_id(id).await? {
+            Some(blog) => Ok(blog),
+            None => {
+                #[cfg(debug_assertions)]
+                {
+                    panic!("Failed to retrieve just-created blog");
+                }
+
+                #[cfg(not(debug_assertions))]
+                {
+                    error!("Failed to retrieve just-created blog");
+                    Err(BlogError::NotFound)
+                }
+            }
+        }
+    }
+
+    async fn blog_by_id(&self, id: BlogId) -> Result<Option<Blog>, BlogError> {
+        let rcord = sqlx::query!(
+            r#"SELECT
+                id,
+                created_at,
+                url
+            FROM blogs
+            WHERE id = ?"#,
+            id
+        )
+        .fetch_optional(&self.db)
+        .await
+        .map_err(BlogError::SqlError)?;
+
+        match rcord {
+            Some(record) => Ok(Some(Blog {
+                id: record.id.into(),
+                created_at: record.created_at,
+                url: record.url.parse().map_err(|e| {
+                    error!("Failed to parse blog URL: {}", e);
+                    BlogError::UrlParseError(e)
+                })?,
+            })),
+            None => Ok(None),
+        }
+    }
+
+    async fn blog_by_url(&self, url: &Url) -> Result<Option<Blog>, BlogError> {
+        let url = url.as_str();
+        let record = sqlx::query!(
+            r#"SELECT
+                id,
+                created_at,
+                url
+            FROM blogs
+            WHERE url = ?"#,
+            url
+        )
+        .fetch_optional(&self.db)
+        .await
+        .map_err(BlogError::SqlError)?;
+
+        match record {
+            Some(record) => Ok(Some(Blog {
+                id: record.id.into(),
+                created_at: record.created_at,
+                url: record.url.parse().map_err(|e| {
+                    error!("Failed to parse blog URL: {}", e);
+                    BlogError::UrlParseError(e)
+                })?,
+            })),
+            None => Ok(None),
+        }
+    }
+
+    async fn delete_blog_by_id(&self, id: BlogId) -> Result<(), BlogError> {
+        sqlx::query!(r#"DELETE FROM blogs WHERE id = ?"#, id)
+            .execute(&self.db)
+            .await
+            .map_err(BlogError::SqlError)?;
+        Ok(())
+    }
+}
+
+#[async_trait]
+impl PostStorage for SqliteStorage {
+    async fn new_post(
+        &self,
+        account_id: AccountId,
+        uri: Uri,
+        reply_to_id: Option<PostId>,
+        root_id: Option<PostId>,
+        blog_id: BlogId,
+    ) -> Result<Post, PostError> {
+        let id = sqlx::query_scalar!(
+            r#"INSERT INTO posts (
+                account_id,
+                uri,
+                reply_to_id,
+                root_id,
+                blog_id
+            )
+            VALUES (?, ?, ?, ?, ?)
+            RETURNING id
+            "#,
+            account_id,
+            uri,
+            reply_to_id,
+            root_id,
+            blog_id
+        )
+        .fetch_one(&self.db)
+        .await
+        .map_err(PostError::SqlError)?
+        .into();
+
+        match self.post_by_id(id).await? {
+            Some(post) => Ok(post),
+            None => {
+                #[cfg(debug_assertions)]
+                {
+                    panic!("Failed to retrieve just-created post");
+                }
+
+                #[cfg(not(debug_assertions))]
+                {
+                    error!("Failed to retrieve just-created post");
+                    Err(PostError::NotFound)
+                }
+            }
+        }
+    }
+
+    async fn post_by_id(&self, id: PostId) -> Result<Option<Post>, PostError> {
+        sqlx::query_as!(
+            Post,
+            r#"SELECT
+                id AS "id: _",
+                created_at AS "created_at: _",
+                updated_at AS "updated_at: _",
+                account_id AS "account_id: _",
+                uri AS "uri: _",
+                reply_to_id AS "reply_to_id: _",
+                root_id AS "root_id: _",
+                blog_id AS "blog_id: _"
+            FROM posts
+            WHERE id = ?"#,
+            id
+        )
+        .fetch_optional(&self.db)
+        .await
+        .map_err(PostError::SqlError)
+    }
+
+    async fn post_by_uri(&self, uri: &Uri) -> Result<Option<Post>, PostError> {
+        sqlx::query_as!(
+            Post,
+            r#"SELECT
+                id AS "id: _",
+                created_at AS "created_at: _",
+                updated_at AS "updated_at: _",
+                account_id AS "account_id: _",
+                uri AS "uri: _",
+                reply_to_id AS "reply_to_id: _",
+                root_id AS "root_id: _",
+                blog_id AS "blog_id: _"
+            FROM posts
+            WHERE uri = ?"#,
+            uri
+        )
+        .fetch_optional(&self.db)
+        .await
+        .map_err(PostError::SqlError)
+    }
+
+    async fn delete_post_by_id(&self, id: PostId) -> Result<(), PostError> {
+        sqlx::query!(r#"DELETE FROM posts WHERE id = ?"#, id)
+            .execute(&self.db)
+            .await
+            .map_err(PostError::SqlError)?;
         Ok(())
     }
 }
