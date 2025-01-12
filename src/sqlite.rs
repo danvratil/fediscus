@@ -487,7 +487,7 @@ impl NoteStorage for SqliteStorage {
         blog_id: BlogId,
     ) -> Result<Note, NoteError> {
         let id = sqlx::query_scalar!(
-            r#"INSERT INTO posts (
+            r#"INSERT INTO notes (
                 account_id,
                 uri,
                 reply_to_id,
@@ -537,7 +537,7 @@ impl NoteStorage for SqliteStorage {
                 reply_to_id AS "reply_to_id: _",
                 root_id AS "root_id: _",
                 blog_id AS "blog_id: _"
-            FROM posts
+            FROM notes
             WHERE id = ?"#,
             id
         )
@@ -558,7 +558,7 @@ impl NoteStorage for SqliteStorage {
                 reply_to_id AS "reply_to_id: _",
                 root_id AS "root_id: _",
                 blog_id AS "blog_id: _"
-            FROM posts
+            FROM notes
             WHERE uri = ?"#,
             uri
         )
@@ -568,7 +568,7 @@ impl NoteStorage for SqliteStorage {
     }
 
     async fn delete_post_by_id(&self, id: NoteId) -> Result<(), NoteError> {
-        sqlx::query!(r#"DELETE FROM posts WHERE id = ?"#, id)
+        sqlx::query!(r#"DELETE FROM notes WHERE id = ?"#, id)
             .execute(&self.db)
             .await
             .map_err(NoteError::SqlError)?;

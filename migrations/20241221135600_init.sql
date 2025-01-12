@@ -52,7 +52,7 @@ CREATE TABLE notes (
     blog_id INTEGER NOT NULL, -- blog post
 
     FOREIGN KEY (account_id) REFERENCES accounts(id) ON DELETE CASCADE,
-    FOREIGN KEY (reply_to_id) REFERENCES posts(id) ON DELETE CASCADE,
-    FOREIGN KEY (root_id) REFERENCES posts(id) ON DELETE CASCADE,
+    FOREIGN KEY (reply_to_id) REFERENCES notes(id) ON DELETE CASCADE,
+    FOREIGN KEY (root_id) REFERENCES notes(id) ON DELETE CASCADE,
     FOREIGN KEY (blog_id) REFERENCES blogs(id) ON DELETE CASCADE
 );

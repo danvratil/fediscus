@@ -9,6 +9,7 @@ use thiserror::Error;
 use crate::storage;
 
 mod accept_follow;
+mod create_note;
 mod follow;
 mod reject_follow;
 mod undo_follow;
@@ -27,6 +28,8 @@ pub enum ActivityError {
     RejectError(#[from] reject_follow::RejectError),
     #[error("Undo follow activity error {0}")]
     UndoError(#[from] undo_follow::UndoFollowError),
+    #[error("Create note activity error {0}")]
+    NoteError(#[from] create_note::CreateNoteError),
     #[error("Unknown error {0}")]
     UnknownError(#[from] anyhow::Error),
 }
