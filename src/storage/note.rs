@@ -23,6 +23,8 @@ pub enum NoteError {
     SqlError(#[from] sqlx::Error),
     #[error("Url Parse Error: {0}")]
     UrlParseError(#[from] url::ParseError),
+    #[error("Activity error {0}")]
+    ActivityError(#[from] activitypub_federation::error::Error),
 }
 
 #[derive(sqlx::Type, Debug, Clone, Copy, PartialEq, Eq, Hash)]
