@@ -43,7 +43,7 @@ impl Type<sqlx::Sqlite> for Uri {
     }
 }
 
-impl<'a> Decode<'a, sqlx::Sqlite> for Uri {
+impl Decode<'_, sqlx::Sqlite> for Uri {
     fn decode(value: sqlx::sqlite::SqliteValueRef) -> Result<Self, sqlx::error::BoxDynError> {
         let s = <&str as Decode<sqlx::Sqlite>>::decode(value)?;
         Ok(Self(Url::parse(s)?))
@@ -74,6 +74,7 @@ impl From<Url> for Uri {
     }
 }
 
+#[allow(clippy::from_over_into)]
 impl Into<Url> for Uri {
     fn into(self) -> Url {
         self.0
@@ -81,7 +82,8 @@ impl Into<Url> for Uri {
 }
 
 
-impl<'de, T> Into<ObjectId<T>> for Uri
+#[allow(clippy::from_over_into)]
+impl<T> Into<ObjectId<T>> for Uri
 where
     T: Object + Send + 'static,
     for<'de2> <T as Object>::Kind: Deserialize<'de2>

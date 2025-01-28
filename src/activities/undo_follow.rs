@@ -19,6 +19,7 @@ use crate::{storage, FederationData};
 use super::{generate_activity_id, ActivityError};
 
 #[derive(Error, Debug)]
+#[allow(clippy::enum_variant_names)]
 pub enum UndoFollowError {
     #[error("Account error: {0}")]
     AccountError(#[from] storage::AccountError),

@@ -16,6 +16,7 @@ use crate::storage::{Account, Note, NoteError};
 use super::ActivityError;
 
 #[derive(Debug, Error)]
+#[allow(clippy::enum_variant_names)]
 pub enum CreateNoteError {
     #[error("Activity error: {0}")]
     ActivityError(#[from] FederationError),

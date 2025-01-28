@@ -21,6 +21,7 @@ use crate::{storage, FederationData};
 use super::{generate_activity_id, ActivityError};
 
 #[derive(Error, Debug)]
+#[allow(clippy::enum_variant_names)]
 pub enum FollowError {
     #[error("Account error: {0}")]
     AccountError(#[from] storage::AccountError),
@@ -56,7 +57,7 @@ impl ActivityHandler for Follow {
     type Error = ActivityError;
 
     fn id(&self) -> &Url {
-        &self.id.inner()
+        self.id.inner()
     }
 
     fn actor(&self) -> &Url {

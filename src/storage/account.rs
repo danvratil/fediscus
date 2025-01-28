@@ -32,9 +32,9 @@ pub enum AccountError {
 #[sqlx(transparent)]
 pub struct AccountId(i64);
 
-impl Into<AccountId> for i64 {
-    fn into(self) -> AccountId {
-        AccountId(self)
+impl From<i64> for AccountId {
+    fn from(id: i64) -> Self {
+        AccountId(id)
     }
 }
 

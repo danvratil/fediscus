@@ -12,7 +12,7 @@ mod undo_follow;
 
 pub use accept_follow::AcceptFollow;
 pub use follow::Follow;
-pub use note::{Note, Tag};
+pub use note::Note;
 pub use person::Person;
 pub use reject_follow::RejectFollow;
 pub use undo_follow::UndoFollow;

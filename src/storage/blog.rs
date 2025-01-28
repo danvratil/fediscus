@@ -25,9 +25,9 @@ pub enum BlogError {
 #[sqlx(transparent)]
 pub struct BlogId(i64);
 
-impl Into<BlogId> for i64 {
-    fn into(self) -> BlogId {
-        BlogId(self)
+impl From<i64> for BlogId {
+    fn from(id: i64) -> Self {
+        BlogId(id)
     }
 }
 

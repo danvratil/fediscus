@@ -15,6 +15,7 @@ mod reject_follow;
 mod undo_follow;
 
 #[derive(Error, Debug)]
+#[allow(clippy::enum_variant_names)]
 pub enum ActivityError {
     #[error("Account error: {0}")]
     AccountError(#[from] storage::AccountError),

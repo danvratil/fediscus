@@ -32,9 +32,9 @@ pub enum FollowError {
 #[sqlx(transparent)]
 pub struct FollowId(i64);
 
-impl Into<FollowId> for i64 {
-    fn into(self) -> FollowId{
-        FollowId(self)
+impl From<i64> for FollowId {
+    fn from(id: i64) -> Self {
+        FollowId(id)
     }
 }
 

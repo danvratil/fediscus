@@ -31,9 +31,9 @@ pub enum NoteError {
 #[sqlx(transparent)]
 pub struct NoteId(i64);
 
-impl Into<NoteId> for i64 {
-    fn into(self) -> NoteId {
-        NoteId(self)
+impl From<i64> for NoteId {
+    fn from(id: i64) -> Self {
+        NoteId(id)
     }
 }
 

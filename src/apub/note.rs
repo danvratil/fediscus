@@ -3,7 +3,7 @@
 //
 // SPDX-License-Identifier: MIT
 
-use activitypub_federation::{fetch::object_id::ObjectId, kinds::object::NoteType, traits::ActivityHandler};
+use activitypub_federation::{fetch::object_id::ObjectId, kinds::object::NoteType};
 use chrono::{DateTime, Utc};
 use html_parser::Dom;
 use serde::Deserialize;

@@ -165,7 +165,8 @@ pub async fn get_outbox(
 #[derive(Debug, Deserialize)]
 pub struct WebFingerQuery {
     resource: String,
-    rel: Option<String>,
+    #[serde(rename = "rel")]
+    _rel: Option<String>,
 }
 
 pub async fn get_webfinger(
