@@ -1,0 +1,7 @@
+[package]
+name = "fediscus-database"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+sqlx = { version = "0.8", features = ["chrono", "runtime-tokio", "sqlite", "tls-rustls"] }

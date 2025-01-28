@@ -710,6 +710,7 @@ dependencies = [
  "chrono",
  "config",
  "enum_delegate",
+ "fediscus-database",
  "futures",
  "html_parser",
  "hyperx",
@@ -728,6 +729,13 @@ dependencies = [
 [[package]]
 name = "fediscus-api"
 version = "0.1.0"
+
+[[package]]
+name = "fediscus-database"
+version = "0.1.0"
+dependencies = [
+ "sqlx",
+]
 
 [[package]]
 name = "flume"
