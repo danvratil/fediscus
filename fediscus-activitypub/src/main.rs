@@ -20,6 +20,7 @@ mod activities;
 mod storage;
 mod apub;
 mod sqlite;
+mod service;
 
 use crate::config::Config;
 use crate::sqlite::SqliteStorage;
@@ -76,8 +77,6 @@ async fn main() -> Result<(), Error> {
         .route("/users/:name/outbox", get(handlers::federation::get_outbox))
         .route("/.well-known/webfinger", get(handlers::federation::get_webfinger))
         .route_layer(FederationMiddleware::new(federation))
-        .route("/api/v1/comments", post(handlers::api::post_comments))
-        .route("/api/v1/count", post(handlers::api::get_count))
         .layer(TraceLayer::new_for_http())
         .with_state(app_state);
 
