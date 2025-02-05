@@ -64,11 +64,11 @@ impl Object for Account {
         object_id: Url,
         data: &Data<Self::DataType>,
     ) -> Result<Option<Self>, Self::Error> {
-        data.storage.account_by_uri(&object_id.into()).await
+        data.service.storage().account_by_uri(&object_id.into()).await
     }
 
     async fn from_json(json: Self::Kind, data: &Data<Self::DataType>) -> Result<Self, Self::Error> {
-        data.storage.update_or_insert_account(&json).await
+        data.service.storage().update_or_insert_account(&json).await
     }
 
     async fn into_json(self, _: &Data<Self::DataType>) -> Result<Self::Kind, Self::Error> {

@@ -57,7 +57,7 @@ impl TryFrom<storage::Account> for LocalUser {
 }
 
 async fn get_local_user(data: &Data<FederationData>) -> Result<LocalUser, Error> {
-    let account = data.storage.get_local_account().await?;
+    let account = data.service.storage().get_local_account().await?;
     LocalUser::try_from(account)
 }
 

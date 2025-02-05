@@ -3,39 +3,18 @@
 //
 // SPDX-License-Identifier: MIT
 
-use activitypub_federation::config::{FederationConfig, FederationMiddleware};
-use anyhow::{Error, anyhow};
-use axum::routing::{get, post};
-use storage::Storage;
-use tower_http::trace::TraceLayer;
+use activitypub_federation::config::FederationConfig;
+use anyhow::Error;
+use fediscus_activitypub::ActivityPubService;
 use std::sync::Arc;
-use tokio::net::TcpListener;
-use tracing::{self, info};
+use tracing;
 
-mod config;
-mod db;
-mod handlers;
-mod types;
-mod activities;
-mod storage;
-mod apub;
-mod sqlite;
-mod service;
-
-use crate::config::Config;
-use crate::sqlite::SqliteStorage;
-
-pub struct AppState {
-    pub config: Config,
-    pub storage: Arc<Box<dyn Storage + Send + Sync + 'static>>,
-    pub federation: FederationConfig<FederationData>,
-}
-
-#[derive(Clone)]
-pub struct FederationData {
-    pub config: Config,
-    pub storage: Arc<Box<dyn Storage + Send + Sync + 'static>>,
-}
+use fediscus_activitypub::db;
+use fediscus_activitypub::Config;
+use fediscus_activitypub::FederationData;
+use fediscus_activitypub::HttpServer;
+use fediscus_activitypub::Service;
+use fediscus_activitypub::SqliteStorage;
 
 #[tokio::main]
 async fn main() -> Result<(), Error> {
@@ -49,11 +28,13 @@ async fn main() -> Result<(), Error> {
         db::init_local_user(&db, &config.fediverse_user).await?;
     }
 
-    let storage = Arc::new(Box::new(SqliteStorage::new(&config.database).await?) as Box<dyn Storage + Send + Sync>);
+    let storage = SqliteStorage::new(&config.database).await?;
+    let service = Arc::new(Box::new(Service::new(storage)) as Box<dyn ActivityPubService + Send + Sync + 'static>);
 
     let federation_data = FederationData {
         config: config.clone(),
-        storage: Arc::clone(&storage),
+        service: Arc::clone(&service),
+        //storage: Arc::clone(&storage),
     };
 
     let federation = FederationConfig::builder()
@@ -62,23 +43,6 @@ async fn main() -> Result<(), Error> {
         .build()
         .await?;
 
-
-    let listener = TcpListener::bind(config.http_server.listen.clone()).await.unwrap();
-    info!("Listening on: {}", listener.local_addr().unwrap());
-
-    let app_state = Arc::new(AppState {
-        config,
-        storage: Arc::clone(&storage),
-        federation: federation.clone(),
-    });
-    let service = axum::Router::new()
-        .route("/users/:name", get(handlers::federation::get_user))
-        .route("/users/:name/inbox", post(handlers::federation::post_inbox))
-        .route("/users/:name/outbox", get(handlers::federation::get_outbox))
-        .route("/.well-known/webfinger", get(handlers::federation::get_webfinger))
-        .route_layer(FederationMiddleware::new(federation))
-        .layer(TraceLayer::new_for_http())
-        .with_state(app_state);
-
-    axum::serve(listener, service).await.map_err(|e| anyhow!(e))
+    let http_server = HttpServer::new(&config, federation).await?;
+    http_server.run().await
 }

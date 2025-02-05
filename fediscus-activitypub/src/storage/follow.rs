@@ -3,8 +3,8 @@
 //
 // SPDX-License-Identifier: MIT
 
-use activitypub_federation::traits::Object;
 use activitypub_federation::config::Data;
+use activitypub_federation::traits::Object;
 use async_trait::async_trait;
 use chrono::NaiveDateTime;
 use thiserror::Error;
@@ -73,9 +73,10 @@ pub trait FollowStorage {
 
     async fn delete_follow_by_uri(&self, uri: &Uri) -> Result<(), FollowError>;
 
+    async fn delete_follow_by_id(&self, follow_id: FollowId) -> Result<(), FollowError>;
+
     async fn follow_accepted(&self, uri: &Uri) -> Result<(), FollowError>;
 }
-
 
 #[async_trait]
 impl Object for Follow {
@@ -87,18 +88,23 @@ impl Object for Follow {
         object_id: Url,
         data: &Data<Self::DataType>,
     ) -> Result<Option<Self>, Self::Error> {
-        data.storage.follow_by_uri(&object_id.into()).await
+        data.service
+            .storage()
+            .follow_by_uri(&object_id.into())
+            .await
     }
 
     async fn into_json(self, data: &Data<Self::DataType>) -> Result<Self::Kind, Self::Error> {
         let account = data
-            .storage
+            .service
+            .storage()
             .account_by_id(self.account_id)
             .await
             .map_err(FollowError::InvalidAccount)?
             .ok_or(FollowError::NotFound)?;
         let target_account = data
-            .storage
+            .service
+            .storage()
             .account_by_id(self.target_account_id)
             .await
             .map_err(FollowError::InvalidAccount)?
@@ -122,13 +128,14 @@ impl Object for Follow {
             .dereference(data)
             .await
             .map_err(FollowError::InvalidAccount)?;
-        data.storage
+        data.service
+            .storage()
             .new_follow(actor.id, object.id, &json.id.into_inner().into(), true)
             .await
     }
 
     async fn delete(self, data: &Data<Self::DataType>) -> Result<(), Self::Error> {
-        data.storage.delete_follow_by_uri(&self.uri).await
+        data.service.storage().delete_follow_by_uri(&self.uri).await
     }
 
     async fn verify(

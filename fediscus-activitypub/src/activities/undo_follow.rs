@@ -7,7 +7,6 @@ use activitypub_federation::activity_queue::queue_activity;
 use activitypub_federation::config::Data;
 use activitypub_federation::protocol::context::WithContext;
 use activitypub_federation::traits::ActivityHandler;
-use activitypub_federation::traits::{Actor, Object};
 use async_trait::async_trait;
 use thiserror::Error;
 use tracing::{info, instrument};
@@ -31,7 +30,7 @@ pub enum UndoFollowError {
 
 impl UndoFollow {
     #[instrument(skip_all)]
-    async fn send(
+    pub async fn send(
         actor: &storage::Account,
         follow: Follow,
         inbox: Url,
@@ -67,56 +66,8 @@ impl ActivityHandler for UndoFollow {
 
     async fn receive(self, data: &Data<Self::DataType>) -> Result<(), Self::Error> {
         info!("Received UndoFollow from {}", self.actor);
-        let actor = self
-            .actor
-            .dereference(data)
-            .await
-            .map_err(UndoFollowError::AccountError)?;
-        let object = self
-            .object
-            .object
-            .dereference_local(data)
-            .await
-            .map_err(UndoFollowError::AccountError)?;
-        // retrieve us following the actor who unfollowed us
-        let follow_back = data
-            .storage
-            .follow_by_ids(object.id, actor.id)
-            .await
-            .map_err(UndoFollowError::FollowError)?;
 
-        // Delete the actor's follow
-        let follow = storage::Follow::read_from_id(self.object.id.into(), data)
-            .await
-            .map_err(UndoFollowError::FollowError)?;
-        if let Some(follow) = follow {
-            storage::Follow::delete(follow, data)
-                .await
-                .map_err(UndoFollowError::FollowError)?;
-        } else {
-            info!("UndoFollow: received Undo for non-existent Follow");
-        }
-
-        if let Some(follow_back) = follow_back {
-            // Let the actor know we've unfollowed them as well
-            UndoFollow::send(
-                &object,
-                follow_back
-                    .clone()
-                    .into_json(data)
-                    .await
-                    .map_err(UndoFollowError::FollowError)?,
-                actor.shared_inbox_or_inbox(),
-                data,
-            )
-            .await?;
-            storage::Follow::delete(follow_back, data)
-                .await
-                .map_err(UndoFollowError::FollowError)?;
-        } else {
-            info!("UndoFollow: not sending Undo to user we don't follow");
-        }
-
+        data.service.handle_follow_undone(self.object.id().clone().into(), data).await?;
         Ok(())
     }
 }

@@ -6,8 +6,7 @@
 use crate::{
     config::Database,
     storage::{
-        Account, AccountError, AccountId, AccountStorage, Blog, BlogError, BlogId, BlogStorage,
-        Follow, FollowError, FollowStorage, Note, NoteError, NoteId, NoteStorage, Storage,
+        Account, AccountError, AccountId, AccountStorage, Blog, BlogError, BlogId, BlogStorage, Follow, FollowError, FollowId, FollowStorage, Note, NoteError, NoteId, NoteStorage, Storage
     },
 };
 
@@ -366,9 +365,18 @@ impl FollowStorage for SqliteStorage {
         .await
         .map_err(FollowError::SqlError)
     }
+
     async fn delete_follow_by_uri(&self, uri: &Uri) -> Result<(), FollowError> {
         let uri = uri.as_str();
         sqlx::query!(r#"DELETE FROM follows WHERE uri = ?"#, uri)
+            .execute(&self.db)
+            .await
+            .map_err(FollowError::SqlError)?;
+        Ok(())
+    }
+
+    async fn delete_follow_by_id(&self, follow_id: FollowId) -> Result<(), FollowError> {
+        sqlx::query!(r#"DELETE FROM follows WHERE id = ?"#, follow_id)
             .execute(&self.db)
             .await
             .map_err(FollowError::SqlError)?;

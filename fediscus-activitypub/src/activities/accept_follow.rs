@@ -75,11 +75,9 @@ impl ActivityHandler for AcceptFollow {
         info!("User {:?} accepted our follow request", self.actor);
 
         let uri = self.object.id;
-        data.storage
-            .follow_accepted(&uri.inner().clone().into())
-            .await
-            .map_err(AcceptError::FollowError)?;
-
+        data.service
+            .handle_follow_accepted(uri.inner().clone().into())
+            .await?;
         Ok(())
     }
 }

@@ -45,9 +45,10 @@ impl APubNote {
         // of the URLs could point to the blog post, but do we have an oracle to tell us which one?
         let blog_url = &urls[0];
 
-        let blog = data.storage.new_blog(blog_url).await.map_err(|e| ActivityError::NoteError(e.into()))?;
+        let blog = data.service.storage().new_blog(blog_url).await.map_err(|e| ActivityError::NoteError(e.into()))?;
 
-        data.storage
+        data.service
+            .storage()
             .new_post(
                 account.id,
                 self.id.inner().clone().into(),
@@ -62,7 +63,8 @@ impl APubNote {
     }
 
     async fn handle_reply_note(&self, data: &Data<crate::FederationData>, account: &Account, parent_note: &Note) -> Result<(), ActivityError> {
-        data.storage
+        data.service
+            .storage()
             .new_post(
                 account.id,
                 self.id.inner().clone().into(),

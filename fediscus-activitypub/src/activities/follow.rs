@@ -12,12 +12,13 @@ use activitypub_federation::protocol::context::WithContext;
 use activitypub_federation::traits::{ActivityHandler, Actor, Object};
 use async_trait::async_trait;
 use thiserror::Error;
-use tracing::{instrument, warn, info};
+use tracing::{info, instrument, warn};
 use url::Url;
 
-use crate::apub::{AcceptFollow, Follow};
+use crate::apub::Follow;
 use crate::{storage, FederationData};
 
+use super::accept_follow::AcceptError;
 use super::{generate_activity_id, ActivityError};
 
 #[derive(Error, Debug)]
@@ -29,11 +30,17 @@ pub enum FollowError {
     ActivityError(#[from] FederationError),
     #[error("Follow error: {0}")]
     FollowError(#[from] storage::FollowError),
+    #[error("Failed to accept follow request: {0}")]
+    AcceptError(#[from] AcceptError),
 }
 
 impl Follow {
     #[instrument(skip_all)]
-    pub async fn send(actor: &storage::Account, object: &storage::Account, data: &Data<FederationData>) -> Result<(), FollowError> {
+    pub async fn send(
+        actor: &storage::Account,
+        object: &storage::Account,
+        data: &Data<FederationData>,
+    ) -> Result<(), FollowError> {
         // Send a follow activity back - we just swap the object and actor
         let follow = WithContext::new_default(Follow::new(
             actor.uri.clone().into(),
@@ -82,26 +89,11 @@ impl ActivityHandler for Follow {
     #[instrument(name="follow_receive", skip_all, fields(actor=%self.actor.inner(), object=%self.object.inner()))]
     async fn receive(self, data: &Data<Self::DataType>) -> Result<(), Self::Error> {
         info!("Received follow request from {}", self.actor.inner());
-        let actor = self
-            .actor
-            .dereference(data)
-            .await
-            .map_err(FollowError::AccountError)?;
-        let object = self
-            .object
-            .dereference_local(data)
-            .await
-            .map_err(FollowError::AccountError)?;
 
-        // Create a new follow in complete state
-        data.storage
-            .new_follow(actor.id, object.id, &self.id.inner().clone().into(), false)
-            .await
-            .map_err(FollowError::FollowError)?;
+        let actor = self.actor.dereference(data).await?;
+        let object = self.object.dereference_local(data).await?;
 
-        AcceptFollow::send(&object, actor.shared_inbox_or_inbox(), self.clone(), data).await?;
-        Follow::send(&object, &actor, data).await?;
-
+        data.service.handle_follow_request(actor, object, self.clone(), data).await?;
         Ok(())
     }
 }

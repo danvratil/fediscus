@@ -38,6 +38,9 @@ pub enum ActivityError {
 use url::Url;
 use uuid::Uuid;
 
+pub use follow::FollowError;
+pub use undo_follow::UndoFollowError;
+
 use crate::FederationData;
 
 fn generate_activity_id(data: &Data<FederationData>) -> Url {

@@ -5,15 +5,15 @@
 
 use activitypub_federation::activity_queue::queue_activity;
 use activitypub_federation::config::Data;
+use activitypub_federation::error::Error as FederationError;
 use activitypub_federation::protocol::context::WithContext;
 use activitypub_federation::traits::ActivityHandler;
-use activitypub_federation::error::Error as FederationError;
 use async_trait::async_trait;
 use thiserror::Error;
 use tracing::{info, instrument};
 use url::Url;
 
-use crate::apub::{RejectFollow, Follow};
+use crate::apub::{Follow, RejectFollow};
 use crate::{storage, FederationData};
 
 use super::{generate_activity_id, ActivityError};
@@ -77,11 +77,9 @@ impl ActivityHandler for RejectFollow {
             .await
             .map_err(RejectError::FollowError)?;
 
-        data.storage
-            .delete_follow_by_uri(&request.uri)
-            .await
-            .map_err(RejectError::FollowError)?;
-
+        data.service
+            .handle_follow_rejected(request.uri.clone().into())
+            .await?;
         Ok(())
     }
 }

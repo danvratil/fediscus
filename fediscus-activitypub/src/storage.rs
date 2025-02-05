@@ -12,7 +12,7 @@ use async_trait::async_trait;
 
 pub use account::{Account, AccountError, AccountId, AccountStorage};
 pub use blog::{Blog, BlogError, BlogId, BlogStorage};
-pub use follow::{Follow, FollowError, FollowStorage};
+pub use follow::{Follow, FollowError, FollowId, FollowStorage};
 pub use note::{Note, NoteError, NoteId, NoteStorage};
 
 #[async_trait]
