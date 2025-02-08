@@ -3,6 +3,9 @@ name = "fediscus-activitypub"
 version = "0.1.0"
 edition = "2021"
 
+[features]
+testing = []
+
 [dependencies]
 activitypub_federation = { path="../../activitypub-federation-rust", default-features = false, features = ["axum"] }
 #activitypub_federation = { version = "0.6", default-features = false, features = ["axum"] }
