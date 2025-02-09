@@ -7,7 +7,7 @@ use async_trait::async_trait;
 
 #[async_trait]
 pub trait ActivityPubService: Send + Sync + 'static {
-    fn storage(&self) -> &Box<dyn Storage + Send + Sync + 'static>;
+    fn storage(&self) -> &(dyn Storage + Send + Sync + 'static);
     async fn handle_follow_accepted(&self, follow_uri: Uri) -> Result<(), FollowError>;
     async fn handle_follow_rejected(&self, follow_uri: Uri) -> Result<(), FollowError>;
     async fn handle_follow_request(

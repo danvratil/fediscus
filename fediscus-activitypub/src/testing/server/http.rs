@@ -14,7 +14,6 @@ use activitypub_federation::{
     traits::Object,
 };
 use axum::{
-    debug_handler,
     extract::{Path, Query},
     response::IntoResponse,
     routing::{get, post},
@@ -49,7 +48,6 @@ pub fn listen(config: &FederationConfig<DatabaseHandle>) -> Result<(), Error> {
     Ok(())
 }
 
-#[debug_handler]
 async fn http_get_user(
     Path(name): Path<String>,
     data: Data<DatabaseHandle>,
@@ -59,7 +57,6 @@ async fn http_get_user(
     Ok(FederationJson(WithContext::new_default(json_user)))
 }
 
-#[debug_handler]
 async fn http_post_user_inbox(
     data: Data<DatabaseHandle>,
     activity_data: ActivityData,
@@ -76,7 +73,6 @@ struct WebfingerQuery {
     resource: String,
 }
 
-#[debug_handler]
 async fn webfinger(
     Query(query): Query<WebfingerQuery>,
     data: Data<DatabaseHandle>,

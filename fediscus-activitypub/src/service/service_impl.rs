@@ -24,8 +24,8 @@ impl Service {
 
 #[async_trait]
 impl ActivityPubService for Service {
-    fn storage(&self) -> &Box<dyn Storage + Send + Sync + 'static> {
-        &self.storage
+    fn storage(&self) -> &(dyn Storage + Send + Sync + 'static) {
+        self.storage.as_ref()
     }
 
     async fn handle_follow_accepted(&self, follow_uri: Uri) -> Result<(), FollowError> {

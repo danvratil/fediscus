@@ -78,7 +78,7 @@ impl ActivityHandler for RejectFollow {
             .map_err(RejectError::FollowError)?;
 
         data.service
-            .handle_follow_rejected(request.uri.clone().into())
+            .handle_follow_rejected(request.uri.clone())
             .await?;
         Ok(())
     }

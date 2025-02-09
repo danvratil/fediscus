@@ -71,7 +71,6 @@ enum LocalUserAcceptedActivities {
     Undo(apub::UndoFollow),
 }
 
-#[axum::debug_handler]
 pub async fn get_user(
     header_map: HeaderMap,
     Path(name): Path<String>,

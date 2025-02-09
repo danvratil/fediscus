@@ -7,7 +7,6 @@ use activitypub_federation::config::FederationConfig;
 use anyhow::Error;
 use fediscus_activitypub::ActivityPubService;
 use std::sync::Arc;
-use tracing;
 
 use fediscus_activitypub::db;
 use fediscus_activitypub::Config;
