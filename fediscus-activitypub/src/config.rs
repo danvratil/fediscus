@@ -5,6 +5,10 @@
 
 use serde::Deserialize;
 
+const fn default_false() -> bool {
+    false
+}
+
 #[derive(Clone, Debug, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 /// The HTTP server configuration
@@ -19,6 +23,9 @@ pub struct HttpServer {
 pub struct HttpClient {
     /// The user agent to use for requests
     pub user_agent: Option<String>,
+
+    #[serde(default = "default_false")]
+    pub allow_http: bool,
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -63,8 +70,12 @@ pub struct Config {
 
 impl Config {
     pub fn load() -> Result<Self, config::ConfigError> {
+        Self::load_from("config/application")
+    }
+
+    pub fn load_from(path: &str) -> Result<Self, config::ConfigError> {
         config::Config::builder()
-            .add_source(config::File::with_name("config/application"))
+            .add_source(config::File::with_name(path))
             .add_source(config::Environment::with_prefix("FEDISCUS"))
             .build()?
             .try_deserialize()

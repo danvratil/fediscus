@@ -1,0 +1,32 @@
+http-server:
+  listen: "127.0.0.1:8086"
+
+http-client:
+  user-agent: Fediscus/1.0
+  allow-http: true
+
+database:
+  url: sqlite://db.sqlite3
+  pool-size: 5
+
+fediverse-user:
+  username: fediscus
+  host: localhost:8086
+  display-name: Fediscus Test
+  private-key: |
+    -----BEGIN PRIVATE KEY-----
+    MIICdgIBADANBgkqhkiG9w0BAQEFAASCAmAwggJcAgEAAoGBAJ/Fi/ycnKMvt0GI
+    oS37o0uR0GiW3UqMajVpJpzSfa+13RhQsOVZxNhBF36Ts6+BB4JOx+6viRQq9osi
+    jJiEES3mTURuVaEQIr6QR6jc/hwZ14C+8bbOS26Kx7/XlDhbem+S2j5HkTxaWvAj
+    qcM/zMbJEFPooZpTg/2BJyeOCbB9AgMBAAECgYA68/OBVHBfrl2aKsX+Z5mLatRR
+    o0koFsOhzZjXyLtjuGFKdYuwNP1zJiF7LRjiK2QP6u3O3qpf7LJoCGmEZUbI6Zfq
+    lTVIkHzCkKzIUmBlXXgg1tkeBR9MtfGVb3rz3BTJoSrCkoodvuzvswkKdoG49vHR
+    Yup0SnKHtD1XQm2H6QJBANGFUGjOmtoyH1Sc25BQfPIvyW+7ULlc8YBNPARhKHLu
+    4x4lioMkNooIGQSfNMlZFiMDKSrhlFKpeQflPvbZxPsCQQDDNvs6x0POAotQwx5x
+    R0ELGTLn3l/VUIqUDl75HaRsqAdy8cRqn/YdHCpk4eOPlQAaXcoUaXTVUEzNYxIH
+    NDbnAkAEmOZAxnfDXeIuGxr+OaXkMoQ6/WMyDgYGiKtOdUtL6k31dWFqqzq/IJpb
+    7Zpc6KWBsyoOFNEKV0mekLsm83RNAkEAl3Onk+GWxFSK+1x12NK8Lr0dFnEbDqcO
+    7HD90+3gbAAsz0us5EA4NDtu1Je/8dxamRoctptebkR/YXU0PmyPDwJASGNM45vi
+    FzQdwfBblViDydT687doZdQr9XcM1/Et0Yv9TvA6K4NrASu6TZveF8jbg1HCFnWy
+    UNWDsH2yl6oRfw==
+    -----END PRIVATE KEY-----
