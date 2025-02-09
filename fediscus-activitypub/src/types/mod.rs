@@ -17,12 +17,12 @@ pub struct Post {
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct GetCountRequest {
-    pub posts: Vec<Post>
+    pub posts: Vec<Post>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct GetCountResponse {
-    counts: HashMap<Url, usize>
+    counts: HashMap<Url, usize>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -48,7 +48,7 @@ pub struct Author {
     pub display_name: String,
     pub url: Url,
     pub avatar: Option<Url>,
-    pub emojis: Vec<Emoji>
+    pub emojis: Vec<Emoji>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -62,7 +62,7 @@ pub struct Comment {
     pub likes_count: usize,
     pub shares_count: usize,
     pub author: Author,
-    pub emojis: Vec<Emoji>
+    pub emojis: Vec<Emoji>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]

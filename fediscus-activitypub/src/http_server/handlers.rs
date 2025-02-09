@@ -6,13 +6,13 @@
 use std::ops::Deref;
 use std::sync::Arc;
 
-use activitypub_federation::axum::inbox::{ActivityData, receive_activity};
+use activitypub_federation::axum::inbox::{receive_activity, ActivityData};
 use activitypub_federation::config::Data;
 use activitypub_federation::fetch::webfinger::{Webfinger, WebfingerLink};
 use activitypub_federation::kinds::collection::OrderedCollectionType;
 use activitypub_federation::traits::{ActivityHandler, Object};
 use activitypub_federation::{
-    FEDERATION_CONTENT_TYPE, axum::json::FederationJson, protocol::context::WithContext,
+    axum::json::FederationJson, protocol::context::WithContext, FEDERATION_CONTENT_TYPE,
 };
 use anyhow::Error;
 use axum::extract::{Query, State};
@@ -124,7 +124,7 @@ struct APubOutbox {
     id: Url,
     r#type: OrderedCollectionType,
     total_items: i32,
-    ordered_items: Vec<()>
+    ordered_items: Vec<()>,
 }
 
 impl APubOutbox {
@@ -139,7 +139,7 @@ impl APubOutbox {
 }
 
 pub async fn get_outbox(
-    Path((name, )): Path<(String,)>,
+    Path((name,)): Path<(String,)>,
     data: Data<FederationData>,
 ) -> impl IntoResponse {
     let local_user = get_local_user(&data)
@@ -154,7 +154,7 @@ pub async fn get_outbox(
         Some(outbox) => {
             let outbox = APubOutbox::empty(outbox.clone().into());
             Ok(FederationJson(WithContext::new_default(outbox)).into_response())
-        },
+        }
         None => {
             error!("Local account without valid outbox URL");
             Err(StatusCode::INTERNAL_SERVER_ERROR)
@@ -186,13 +186,25 @@ pub async fn get_webfinger(
             subject: query.resource,
             aliases: vec![
                 Url::parse(&format!(
-                    "https://{}/{}",
-                    local_user.host, local_user.username
+                    "{}://{}/{}",
+                    if data.app_data().config.http_client.allow_http {
+                        "http"
+                    } else {
+                        "https"
+                    },
+                    local_user.host,
+                    local_user.username
                 ))
                 .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?,
                 Url::parse(&format!(
-                    "https://{}/users/{}",
-                    local_user.host, local_user.username
+                    "{}://{}/users/{}",
+                    if data.app_data().config.http_client.allow_http {
+                        "http"
+                    } else {
+                        "https"
+                    },
+                    local_user.host,
+                    local_user.username
                 ))
                 .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?,
             ],
@@ -201,8 +213,14 @@ pub async fn get_webfinger(
                 kind: Some("application/activity+json".to_string()),
                 href: Some(
                     Url::parse(&format!(
-                        "https://{}/users/{}",
-                        local_user.host, local_user.username
+                        "{}://{}/users/{}",
+                        if data.app_data().config.http_client.allow_http {
+                            "http"
+                        } else {
+                            "https"
+                        },
+                        local_user.host,
+                        local_user.username
                     ))
                     .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?,
                 ),

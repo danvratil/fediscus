@@ -29,23 +29,34 @@ pub enum CreateNoteError {
 }
 
 impl APubNote {
-    async fn handle_top_level_note(&self, data: &Data<crate::FederationData>, account: &Account) -> Result<(), ActivityError> {
+    async fn handle_top_level_note(
+        &self,
+        data: &Data<crate::FederationData>,
+        account: &Account,
+    ) -> Result<(), ActivityError> {
         // A top-level note must contain the #fediscus tag, otherwise it's not interesting to us
         if !self.has_tag() {
-            return Ok(())
+            return Ok(());
         }
 
-        let urls = self.get_links().map_err(|_| CreateNoteError::ContentError)?;
+        let urls = self
+            .get_links()
+            .map_err(|_| CreateNoteError::ContentError)?;
         // And it must have at least one link to the blog post, duh!
         if urls.is_empty() {
-            return Ok(())
+            return Ok(());
         }
 
         // We are only interested in the first URL, which should point to the blog post. Obviously any
         // of the URLs could point to the blog post, but do we have an oracle to tell us which one?
         let blog_url = &urls[0];
 
-        let blog = data.service.storage().new_blog(blog_url).await.map_err(|e| ActivityError::NoteError(e.into()))?;
+        let blog = data
+            .service
+            .storage()
+            .new_blog(blog_url)
+            .await
+            .map_err(|e| ActivityError::NoteError(e.into()))?;
 
         data.service
             .storage()
@@ -62,7 +73,12 @@ impl APubNote {
         Ok(())
     }
 
-    async fn handle_reply_note(&self, data: &Data<crate::FederationData>, account: &Account, parent_note: &Note) -> Result<(), ActivityError> {
+    async fn handle_reply_note(
+        &self,
+        data: &Data<crate::FederationData>,
+        account: &Account,
+        parent_note: &Note,
+    ) -> Result<(), ActivityError> {
         data.service
             .storage()
             .new_post(
@@ -107,13 +123,13 @@ impl ActivityHandler for APubNote {
             Some(id) => match id.dereference_local(data).await {
                 Ok(note) => Some(note), // Parent exists locally
                 Err(NoteError::ActivityError(FederationError::NotFound)) => {
-                    return Ok(()) // Parent doesn't exist locally -> OK, we just ignore this entire conversation
-                },
+                    return Ok(()); // Parent doesn't exist locally -> OK, we just ignore this entire conversation
+                }
                 Err(err) => {
-                    return Err(ActivityError::NoteError(err.into())) // Something went wrong
+                    return Err(ActivityError::NoteError(err.into())); // Something went wrong
                 }
             },
-            None => None,  // OK, this is a top-level note
+            None => None, // OK, this is a top-level note
         };
 
         match parent_note {

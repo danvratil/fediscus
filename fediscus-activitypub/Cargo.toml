@@ -14,15 +14,19 @@ async-trait = "0.1"
 axum = { version = "0.7", features = ["macros"] }
 chrono = { version = "0.4", features = ["serde"] }
 config = "0.15"
-enum_delegate = "0.2.0"
+enum_delegate = "0.2"
 fediscus-database = { path = "../fediscus-database" }
 futures = "0.3"
-html_parser = "0.7.0"
+html_parser = "0.7"
 # The upstream hyperx has hardcoded upper bounds on its dependencies, which breaks dependency resolution.
 # This is a fork that uses proper semver dependencies.
 hyperx = { git = "https://github.com/chantra/hyperx", branch = "semver" }
+# FIXME: Needed by testing module
+rand = "0.9"
 rsa = "0.9"
 serde = { version = "1.0", features = ["derive"] }
+# FIXME: Needed by testing module
+serde_json = "1.0"
 sqlx = { version = "0.8", features = ["chrono", "runtime-tokio", "sqlite", "tls-rustls"] }
 thiserror = "2.0"
 tokio = { version = "1.42", features = ["full"] }

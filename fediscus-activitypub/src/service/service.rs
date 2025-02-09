@@ -16,14 +16,14 @@ pub struct Service {
 
 impl Service {
     pub fn new<S: Storage + Send + Sync + 'static>(storage: S) -> Self {
-        Self { storage: Box::new(storage) }
+        Self {
+            storage: Box::new(storage),
+        }
     }
 }
 
-
 #[async_trait]
 impl ActivityPubService for Service {
-
     fn storage(&self) -> &Box<dyn Storage + Send + Sync + 'static> {
         &self.storage
     }
@@ -42,8 +42,13 @@ impl ActivityPubService for Service {
             .map_err(Into::into)
     }
 
-    async fn handle_follow_request(&self, actor: Account, object: Account, follow: Follow, data: &Data<FederationData>) -> Result<(), FollowError> {
-
+    async fn handle_follow_request(
+        &self,
+        actor: Account,
+        object: Account,
+        follow: Follow,
+        data: &Data<FederationData>,
+    ) -> Result<(), FollowError> {
         // Create a new follow in complete state
         self.storage
             .new_follow(
@@ -57,13 +62,16 @@ impl ActivityPubService for Service {
         AcceptFollow::send(&object, actor.shared_inbox_or_inbox(), follow, data)
             .await
             .map_err(FollowError::AcceptError)?;
-        Follow::send(&object, &actor, data)
-            .await?;
+        Follow::send(&object, &actor, data).await?;
 
         Ok(())
     }
 
-    async fn handle_follow_undone(&self, follow_uri: Uri, data: &Data<FederationData>) -> Result<(), UndoFollowError> {
+    async fn handle_follow_undone(
+        &self,
+        follow_uri: Uri,
+        data: &Data<FederationData>,
+    ) -> Result<(), UndoFollowError> {
         // Find the original follow that is being undone
         let follow = self.storage.follow_by_uri(&follow_uri).await?;
         // If we don't have one, we are good.
@@ -94,15 +102,15 @@ impl ActivityPubService for Service {
         };
 
         // Obtain the inverse follow relationship (us following the original actor), so we can cancel it.
-        let follow_back = self.storage.follow_by_ids(follow.target_account_id, follow.account_id).await?;
+        let follow_back = self
+            .storage
+            .follow_by_ids(follow.target_account_id, follow.account_id)
+            .await?;
         if let Some(follow_back) = follow_back {
             // Let the actor know we've unfollowed them as well
             UndoFollow::send(
                 &object,
-                follow_back
-                    .clone()
-                    .into_json(data)
-                    .await?,
+                follow_back.clone().into_json(data).await?,
                 actor.shared_inbox_or_inbox(),
                 data,
             )
@@ -114,5 +122,82 @@ impl ActivityPubService for Service {
         }
 
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::apub::Follow;
+    use crate::storage::AccountStorage;
+    use crate::testing;
+    use crate::FederationData;
+    use activitypub_federation::config::FederationConfig;
+    use activitypub_federation::fetch::object_id::ObjectId;
+    use std::sync::Arc;
+    use url::Url;
+
+    #[tokio::test]
+    async fn test_handle_follow_request() {
+        let storage = testing::MemoryStorage::new("example.com");
+
+        let local_account = storage.account_by_id(1.into()).await.unwrap().unwrap();
+
+        let actor = testing::create_person("testuser", "example.com");
+        let actor_account = storage.new_account(&actor).await.unwrap();
+
+        let follow = Follow::new(
+            ObjectId::<Account>::parse(actor_account.uri.as_str()).unwrap(),
+            ObjectId::<Account>::parse(local_account.uri.as_str()).unwrap(),
+            Url::parse("http://example.com/follow/1").unwrap().into(),
+        );
+
+        let service = Box::new(Service::new(storage));
+        let data = FederationData {
+            config: crate::Config::load().unwrap(),
+            service: Arc::new(service),
+        };
+        let data = FederationConfig::builder()
+            .app_data(data)
+            .debug(true)
+            .domain("example.com")
+            .build()
+            .await
+            .unwrap();
+
+        data.service
+            .handle_follow_request(
+                actor_account.clone(),
+                local_account.clone(),
+                follow.clone(),
+                &data.to_request_data(),
+            )
+            .await
+            .expect("Handling follow request failed");
+
+        // Handling the follow request should leave us with a existing follow relationship
+        // in non-pending (confirmed) state...
+        let created_follow = data
+            .service
+            .storage()
+            .follow_by_uri(&follow.id.inner().clone().into())
+            .await
+            .expect("Retrieving Follow failed")
+            .expect("Follow not found");
+        assert_eq!(created_follow.account_id, actor_account.id);
+        assert_eq!(created_follow.target_account_id, local_account.id);
+        assert!(!created_follow.pending);
+
+        // And a reverse follow relationship in pending state (waiting for the original actor to approve our follow-back)
+        let reverse_follow = data
+            .service
+            .storage()
+            .follow_by_ids(local_account.id, actor_account.id)
+            .await
+            .expect("Retrieving reverse follow failed")
+            .expect("Reverse follow not found");
+        assert_eq!(reverse_follow.account_id, local_account.id);
+        assert_eq!(reverse_follow.target_account_id, actor_account.id);
+        assert!(reverse_follow.pending);
     }
 }

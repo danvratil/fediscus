@@ -93,7 +93,9 @@ impl ActivityHandler for Follow {
         let actor = self.actor.dereference(data).await?;
         let object = self.object.dereference_local(data).await?;
 
-        data.service.handle_follow_request(actor, object, self.clone(), data).await?;
+        data.service
+            .handle_follow_request(actor, object, self.clone(), data)
+            .await?;
         Ok(())
     }
 }

@@ -67,7 +67,9 @@ impl ActivityHandler for UndoFollow {
     async fn receive(self, data: &Data<Self::DataType>) -> Result<(), Self::Error> {
         info!("Received UndoFollow from {}", self.actor);
 
-        data.service.handle_follow_undone(self.object.id().clone().into(), data).await?;
+        data.service
+            .handle_follow_undone(self.object.id().clone().into(), data)
+            .await?;
         Ok(())
     }
 }

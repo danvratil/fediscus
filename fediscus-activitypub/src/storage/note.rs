@@ -55,7 +55,10 @@ impl Object for Note {
     type Kind = apub::Note;
     type Error = NoteError;
 
-    async fn read_from_id(_id: Url, _data: &Data<Self::DataType>) ->  Result<Option<Self> ,Self::Error> {
+    async fn read_from_id(
+        _id: Url,
+        _data: &Data<Self::DataType>,
+    ) -> Result<Option<Self>, Self::Error> {
         todo!()
     }
 
@@ -63,11 +66,18 @@ impl Object for Note {
         todo!()
     }
 
-    async fn from_json(_json: Self::Kind, _data: &Data<Self::DataType>) -> Result<Self, Self::Error> {
+    async fn from_json(
+        _json: Self::Kind,
+        _data: &Data<Self::DataType>,
+    ) -> Result<Self, Self::Error> {
         todo!()
     }
 
-    async fn verify(_json: &Self::Kind, _expected_domain: &Url, _data: &Data<Self::DataType>) -> Result<(), Self::Error> {
+    async fn verify(
+        _json: &Self::Kind,
+        _expected_domain: &Url,
+        _data: &Data<Self::DataType>,
+    ) -> Result<(), Self::Error> {
         todo!()
     }
 }

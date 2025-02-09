@@ -20,7 +20,6 @@ pub enum BlogError {
     UrlParseError(#[from] url::ParseError),
 }
 
-
 #[derive(sqlx::Type, Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[sqlx(transparent)]
 pub struct BlogId(i64);

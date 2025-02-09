@@ -3,7 +3,10 @@
 //
 // SPDX-License-Identifier: MIT
 
-use std::{fmt::{Debug, Display}, ops::Deref};
+use std::{
+    fmt::{Debug, Display},
+    ops::Deref,
+};
 
 use activitypub_federation::{fetch::object_id::ObjectId, traits::Object};
 use serde::Deserialize;
@@ -81,12 +84,11 @@ impl Into<Url> for Uri {
     }
 }
 
-
 #[allow(clippy::from_over_into)]
 impl<T> Into<ObjectId<T>> for Uri
 where
     T: Object + Send + 'static,
-    for<'de2> <T as Object>::Kind: Deserialize<'de2>
+    for<'de2> <T as Object>::Kind: Deserialize<'de2>,
 {
     fn into(self) -> ObjectId<T> {
         self.0.into()

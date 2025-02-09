@@ -7,8 +7,7 @@ use activitypub_federation::{fetch::object_id::ObjectId, kinds::activity::Reject
 use serde::{Deserialize, Serialize};
 use url::Url;
 
-use crate::{storage, apub};
-
+use crate::{apub, storage};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -20,17 +19,12 @@ pub struct RejectFollow {
 }
 
 impl RejectFollow {
-    pub fn new(
-        actor: ObjectId<storage::Account>,
-        object: apub::Follow,
-        id: Url,
-    ) -> Self {
+    pub fn new(actor: ObjectId<storage::Account>, object: apub::Follow, id: Url) -> Self {
         Self {
             actor,
             object,
             r#type: RejectType::Reject,
-            id
+            id,
         }
     }
 }
-

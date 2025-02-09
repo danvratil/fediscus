@@ -6,7 +6,9 @@
 use crate::{
     config::Database,
     storage::{
-        Account, AccountError, AccountId, AccountStorage, Blog, BlogError, BlogId, BlogStorage, Follow, FollowError, FollowId, FollowStorage, Note, NoteError, NoteId, NoteStorage, Storage
+        Account, AccountError, AccountId, AccountStorage, Blog, BlogError, BlogId, BlogStorage,
+        Follow, FollowError, FollowId, FollowStorage, Note, NoteError, NoteId, NoteStorage,
+        Storage,
     },
 };
 

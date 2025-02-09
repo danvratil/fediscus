@@ -29,12 +29,13 @@ async fn main() -> Result<(), Error> {
     }
 
     let storage = SqliteStorage::new(&config.database).await?;
-    let service = Arc::new(Box::new(Service::new(storage)) as Box<dyn ActivityPubService + Send + Sync + 'static>);
+    let service = Arc::new(
+        Box::new(Service::new(storage)) as Box<dyn ActivityPubService + Send + Sync + 'static>
+    );
 
     let federation_data = FederationData {
         config: config.clone(),
         service: Arc::clone(&service),
-        //storage: Arc::clone(&storage),
     };
 
     let federation = FederationConfig::builder()

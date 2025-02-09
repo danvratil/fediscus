@@ -45,5 +45,9 @@ use crate::FederationData;
 
 fn generate_activity_id(data: &Data<FederationData>) -> Url {
     let id = Uuid::new_v4();
-    Url::parse(&format!("https://{}/activity/{}", data.config.fediverse_user.host, id)).unwrap()
+    Url::parse(&format!(
+        "https://{}/activity/{}",
+        data.config.fediverse_user.host, id
+    ))
+    .unwrap()
 }

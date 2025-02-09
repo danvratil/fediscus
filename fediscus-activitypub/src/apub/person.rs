@@ -3,7 +3,9 @@
 //
 // SPDX-License-Identifier: MIT
 
-use activitypub_federation::{fetch::object_id::ObjectId, kinds::actor::PersonType, protocol::public_key::PublicKey};
+use activitypub_federation::{
+    fetch::object_id::ObjectId, kinds::actor::PersonType, protocol::public_key::PublicKey,
+};
 use serde::{Deserialize, Serialize};
 use url::Url;
 

@@ -10,6 +10,7 @@ mod http_server;
 mod service;
 mod sqlite;
 mod storage;
+pub mod testing;
 mod types;
 
 pub struct AppState {

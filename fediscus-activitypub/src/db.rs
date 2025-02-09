@@ -3,7 +3,10 @@
 //
 // SPDX-License-Identifier: MIT
 
-use rsa::{RsaPrivateKey, pkcs8::{DecodePrivateKey, EncodePublicKey}};
+use rsa::{
+    pkcs8::{DecodePrivateKey, EncodePublicKey},
+    RsaPrivateKey,
+};
 use thiserror::Error;
 
 mod uri;
@@ -95,18 +98,9 @@ pub async fn init_local_user(
     };
 
     if !exists {
-        let inbox = format!(
-            "https://{}/users/{}/inbox",
-            config.host, config.username
-        );
-        let outbox = format!(
-            "https://{}/users/{}/outbox",
-            config.host, config.username
-        );
-        let uri = format!(
-            "https://{}/users/{}",
-            config.host, config.username
-        );
+        let inbox = format!("https://{}/users/{}/inbox", config.host, config.username);
+        let outbox = format!("https://{}/users/{}/outbox", config.host, config.username);
+        let uri = format!("https://{}/users/{}", config.host, config.username);
         let public_key = derive_public_key_pem(&config.private_key)?;
         sqlx::query!(
             "INSERT INTO accounts \

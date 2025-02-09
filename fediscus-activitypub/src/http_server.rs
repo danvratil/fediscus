@@ -1,7 +1,7 @@
 use anyhow::Error;
 use axum::routing::{get, post};
-use tower_http::trace::TraceLayer;
 use std::sync::Arc;
+use tower_http::trace::TraceLayer;
 
 use activitypub_federation::config::{FederationConfig, FederationMiddleware};
 use tokio::net::TcpListener;
@@ -16,17 +16,22 @@ pub struct HttpServer {
 }
 
 impl HttpServer {
-    pub async fn new(config: &Config, federation: FederationConfig<FederationData>) -> Result<Self, Error> {
+    pub async fn new(
+        config: &Config,
+        federation: FederationConfig<FederationData>,
+    ) -> Result<Self, Error> {
         Ok(Self {
             app_state: Arc::new(AppState {
                 config: config.clone(),
                 federation,
-            })
+            }),
         })
     }
 
     pub async fn run(self) -> Result<(), Error> {
-        let listener = TcpListener::bind(self.app_state.config.http_server.listen.clone()).await.unwrap();
+        let listener = TcpListener::bind(self.app_state.config.http_server.listen.clone())
+            .await
+            .unwrap();
         info!("Listening on: {}", listener.local_addr().unwrap());
 
         let service = axum::Router::new()
