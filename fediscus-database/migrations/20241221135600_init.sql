@@ -50,6 +50,8 @@ CREATE TABLE notes (
     reply_to_id INTEGER NULL, -- reply to
     root_id INTEGER NULL, -- root post
     blog_id INTEGER NOT NULL, -- blog post
+    likes INTEGER NOT NULL DEFAULT 0,
+    reposts INTEGER NOT NULL DEFAULT 0,
 
     FOREIGN KEY (account_id) REFERENCES accounts(id) ON DELETE CASCADE,
     FOREIGN KEY (reply_to_id) REFERENCES notes(id) ON DELETE CASCADE,
