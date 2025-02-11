@@ -177,7 +177,11 @@ async fn test_handle_unfollow() {
     // The test user unfollows fediscus
     test_server
         .local_user()
-        .unfollow("fediscus@localhost:8086", &follow_id, &test_server.to_request_data())
+        .unfollow(
+            "fediscus@localhost:8086",
+            &follow_id,
+            &test_server.to_request_data(),
+        )
         .await
         .expect("Failed to unfollow Fediscus");
 

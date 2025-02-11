@@ -9,10 +9,7 @@ use activitypub_federation::{
     activity_queue::queue_activity,
     activity_sending::SendActivityTask,
     config::Data,
-    fetch::{
-        object_id::ObjectId,
-        webfinger::webfinger_resolve_actor,
-    },
+    fetch::{object_id::ObjectId, webfinger::webfinger_resolve_actor},
     kinds::actor::PersonType,
     protocol::{context::WithContext, public_key::PublicKey, verification::verify_domains_match},
     traits::{ActivityHandler, Actor, Object},

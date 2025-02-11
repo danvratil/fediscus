@@ -1,7 +1,7 @@
 use crate::testing::server::{
     error::Error,
     http,
-    objects::{DbUser, DbPost},
+    objects::{DbPost, DbUser},
 };
 use activitypub_federation::config::{FederationConfig, UrlVerifier};
 use anyhow::anyhow;

@@ -1,15 +1,14 @@
+use activitypub_federation::config::Data;
 use activitypub_federation::fetch::object_id::ObjectId;
 use activitypub_federation::kinds::activity::UndoType;
 use activitypub_federation::traits::ActivityHandler;
-use activitypub_federation::config::Data;
-use url::Url;
 use serde::{Deserialize, Serialize};
+use url::Url;
 
+use crate::testing::server::activities::Follow;
 use crate::testing::server::error::Error;
 use crate::testing::server::objects::DbUser;
-use crate::testing::server::activities::Follow;
 use crate::testing::server::DatabaseHandle;
-
 
 #[derive(Deserialize, Serialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
@@ -18,7 +17,7 @@ pub struct Undo {
     pub(crate) object: Follow,
     #[serde(rename = "type")]
     kind: UndoType,
-    id: Url
+    id: Url,
 }
 
 impl Undo {
@@ -27,7 +26,7 @@ impl Undo {
             actor,
             object,
             kind: Default::default(),
-            id
+            id,
         }
     }
 }
