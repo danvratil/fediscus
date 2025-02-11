@@ -1,0 +1,18 @@
+# pre-commit hooks configuration
+#
+# 1) Install pre-commit program
+# 2) Install pre-commit git hooks into the current repo: `pre-commit install`
+# 3) That's it - pre-commit will automatically run the following hooks on
+#    each commit. No longer will you realize you forgot `cargo fmt` only when
+#    TeamCity shows you the finger.
+#
+# See https://pre-commit.com for more information
+# See https://pre-commit.com/hooks.html for more hooks
+repos:
+- repo: https://github.com/doublify/pre-commit-rust
+  rev: v1.0
+  hooks:
+    - id: fmt
+    - id: cargo-check
+    - id: clippy
+      args: ["--all", "--locked", "--tests", "--", "--deny", "clippy::all", "--deny", "warnings"]
