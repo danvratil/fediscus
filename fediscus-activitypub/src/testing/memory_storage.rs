@@ -394,6 +394,8 @@ impl NoteStorage for MemoryStorage {
             reply_to_id,
             root_id,
             blog_id,
+            likes: 0,
+            reposts: 0,
         };
         notes.push(note.clone());
         Ok(note)
@@ -425,6 +427,26 @@ impl NoteStorage for MemoryStorage {
 
     async fn post_count(&self) -> Result<usize, NoteError> {
         Ok(self.notes.lock().await.len())
+    }
+
+    async fn like_post(&self, post_uri: &Uri) -> Result<(), NoteError> {
+        let mut notes = self.notes.lock().await;
+        if let Some(note) = notes.iter_mut().find(|n| n.uri == *post_uri) {
+            note.likes += 1;
+            Ok(())
+        } else {
+            Err(NoteError::NotFound)
+        }
+    }
+
+    async fn unlike_post(&self, post_uri: &Uri) -> Result<(), NoteError> {
+        let mut notes = self.notes.lock().await;
+        if let Some(note) = notes.iter_mut().find(|n| n.uri == *post_uri) {
+            note.likes -= 1;
+            Ok(())
+        } else {
+            Err(NoteError::NotFound)
+        }
     }
 }
 

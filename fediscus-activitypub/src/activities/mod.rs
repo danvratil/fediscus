@@ -11,9 +11,10 @@ use crate::storage;
 mod accept_follow;
 mod create_note;
 mod follow;
+mod like;
 mod reject_follow;
 mod undo_follow;
-
+mod undo_like;
 #[derive(Error, Debug)]
 #[allow(clippy::enum_variant_names)]
 pub enum ActivityError {
@@ -31,6 +32,8 @@ pub enum ActivityError {
     UndoError(#[from] undo_follow::UndoFollowError),
     #[error("Create note activity error {0}")]
     NoteError(#[from] create_note::CreateNoteError),
+    #[error("Like activity error {0}")]
+    LikeError(#[from] like::LikeError),
     #[error("Unknown error {0}")]
     UnknownError(#[from] anyhow::Error),
 }
@@ -40,6 +43,7 @@ use uuid::Uuid;
 
 pub use create_note::CreateNote;
 pub use follow::FollowError;
+pub use like::LikeError;
 pub use undo_follow::UndoFollowError;
 
 use crate::FederationData;

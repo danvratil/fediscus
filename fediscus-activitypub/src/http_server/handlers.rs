@@ -69,8 +69,10 @@ enum LocalUserAcceptedActivities {
     Follow(apub::Follow),
     Accept(apub::AcceptFollow),
     Reject(apub::RejectFollow),
-    Undo(apub::UndoFollow),
+    UndoFollow(apub::UndoFollow),
     Create(activities::CreateNote),
+    Like(apub::Like),
+    UndoLike(apub::UndoLike),
 }
 
 pub async fn get_user(

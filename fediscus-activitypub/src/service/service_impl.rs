@@ -1,4 +1,4 @@
-use crate::activities::{FollowError, UndoFollowError};
+use crate::activities::{FollowError, LikeError, UndoFollowError};
 use crate::apub::{AcceptFollow, Follow, UndoFollow};
 use crate::db::Uri;
 use crate::storage::{Account, Storage};
@@ -121,6 +121,16 @@ impl ActivityPubService for Service {
             info!("UndoFollow: not sending Undo to user we don't follow");
         }
 
+        Ok(())
+    }
+
+    async fn like_post(&self, post_uri: Uri) -> Result<(), LikeError> {
+        self.storage.like_post(&post_uri).await?;
+        Ok(())
+    }
+
+    async fn unlike_post(&self, post_uri: Uri) -> Result<(), LikeError> {
+        self.storage.unlike_post(&post_uri).await?;
         Ok(())
     }
 }

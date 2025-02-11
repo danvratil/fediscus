@@ -47,6 +47,8 @@ pub struct Note {
     pub reply_to_id: Option<NoteId>,
     pub root_id: Option<NoteId>,
     pub blog_id: BlogId,
+    pub likes: i64,
+    pub reposts: i64,
 }
 
 #[async_trait]
@@ -100,4 +102,8 @@ pub trait NoteStorage {
     async fn delete_post_by_id(&self, id: NoteId) -> Result<(), NoteError>;
 
     async fn post_count(&self) -> Result<usize, NoteError>;
+
+    async fn like_post(&self, post_uri: &Uri) -> Result<(), NoteError>;
+
+    async fn unlike_post(&self, post_uri: &Uri) -> Result<(), NoteError>;
 }

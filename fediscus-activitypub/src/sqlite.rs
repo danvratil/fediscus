@@ -546,7 +546,9 @@ impl NoteStorage for SqliteStorage {
                 uri AS "uri: _",
                 reply_to_id AS "reply_to_id: _",
                 root_id AS "root_id: _",
-                blog_id AS "blog_id: _"
+                blog_id AS "blog_id: _",
+                likes,
+                reposts
             FROM notes
             WHERE id = ?"#,
             id
@@ -567,7 +569,9 @@ impl NoteStorage for SqliteStorage {
                 uri AS "uri: _",
                 reply_to_id AS "reply_to_id: _",
                 root_id AS "root_id: _",
-                blog_id AS "blog_id: _"
+                blog_id AS "blog_id: _",
+                likes,
+                reposts
             FROM notes
             WHERE uri = ?"#,
             uri
@@ -591,5 +595,27 @@ impl NoteStorage for SqliteStorage {
             .await
             .map_err(NoteError::SqlError)?;
         Ok(count as usize)
+    }
+
+    async fn like_post(&self, post_uri: &Uri) -> Result<(), NoteError> {
+        sqlx::query!(
+            r#"UPDATE notes SET likes = likes + 1 WHERE uri = ?"#,
+            post_uri
+        )
+        .execute(&self.db)
+        .await
+        .map_err(NoteError::SqlError)?;
+        Ok(())
+    }
+
+    async fn unlike_post(&self, post_uri: &Uri) -> Result<(), NoteError> {
+        sqlx::query!(
+            r#"UPDATE notes SET likes = likes - 1 WHERE uri = ?"#,
+            post_uri
+        )
+        .execute(&self.db)
+        .await
+        .map_err(NoteError::SqlError)?;
+        Ok(())
     }
 }
