@@ -1,5 +1,5 @@
 use crate::testing::server::{
-    activities::{accept::Accept, create_post::CreatePost, follow::Follow},
+    activities::{Accept, CreatePost, Follow, Undo},
     error::Error,
     instance::DatabaseHandle,
     objects::post::DbPost,
@@ -9,7 +9,10 @@ use activitypub_federation::{
     activity_queue::queue_activity,
     activity_sending::SendActivityTask,
     config::Data,
-    fetch::{object_id::ObjectId, webfinger::webfinger_resolve_actor},
+    fetch::{
+        object_id::ObjectId,
+        webfinger::webfinger_resolve_actor,
+    },
     kinds::actor::PersonType,
     protocol::{context::WithContext, public_key::PublicKey, verification::verify_domains_match},
     traits::{ActivityHandler, Actor, Object},
@@ -41,6 +44,7 @@ pub enum PersonAcceptedActivities {
     Follow(Follow),
     Accept(Accept),
     CreateNote(CreatePost),
+    Undo(Undo),
 }
 
 impl DbUser {
@@ -85,11 +89,29 @@ impl DbUser {
         Ok(Url::parse(&format!("{}/followers", self.ap_id.inner()))?)
     }
 
-    pub async fn follow(&self, other: &str, data: &Data<DatabaseHandle>) -> Result<(), Error> {
+    pub async fn follow(&self, other: &str, data: &Data<DatabaseHandle>) -> Result<Url, Error> {
         let other: DbUser = webfinger_resolve_actor(other, data).await?;
         let id = generate_object_id(data.domain())?;
         let follow = Follow::new(self.ap_id.clone(), other.ap_id.clone(), id.clone());
         self.send(follow, vec![other.shared_inbox_or_inbox()], false, data)
+            .await?;
+        Ok(id)
+    }
+
+    pub async fn unfollow(
+        &self,
+        other: &str,
+        follow_id: &Url,
+        data: &Data<DatabaseHandle>,
+    ) -> Result<(), Error> {
+        let other: DbUser = webfinger_resolve_actor(other, data).await?;
+        let id = generate_object_id(data.domain())?;
+        let undo = Undo::new(
+            self.ap_id.clone(),
+            Follow::new(self.ap_id.clone(), other.ap_id.clone(), follow_id.clone()),
+            id.clone(),
+        );
+        self.send(undo, vec![other.shared_inbox_or_inbox()], false, data)
             .await?;
         Ok(())
     }

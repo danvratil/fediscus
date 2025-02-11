@@ -1,5 +1,5 @@
 use crate::testing::server::{
-    activities::follow::Follow, error::Error, instance::DatabaseHandle, objects::person::DbUser,
+    activities::follow::Follow, error::Error, instance::DatabaseHandle, objects::DbUser,
 };
 use activitypub_federation::{
     config::Data, fetch::object_id::ObjectId, kinds::activity::AcceptType, traits::ActivityHandler,

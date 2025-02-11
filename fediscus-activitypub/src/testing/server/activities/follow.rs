@@ -1,5 +1,5 @@
 use crate::testing::server::{
-    activities::accept::Accept, error::Error, instance::DatabaseHandle, objects::person::DbUser,
+    activities::accept::Accept, error::Error, instance::DatabaseHandle, objects::DbUser,
     utils::generate_object_id,
 };
 use activitypub_federation::{

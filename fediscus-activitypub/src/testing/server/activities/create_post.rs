@@ -1,7 +1,7 @@
 use crate::testing::server::{
     error::Error,
     instance::DatabaseHandle,
-    objects::{person::DbUser, post::DbPost, post::Note},
+    objects::{DbUser, DbPost, Note},
 };
 use activitypub_federation::{
     config::Data,

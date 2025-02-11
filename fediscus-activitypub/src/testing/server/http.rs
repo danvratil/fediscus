@@ -1,7 +1,7 @@
 use crate::testing::server::{
     error::Error,
     instance::DatabaseHandle,
-    objects::person::{DbUser, Person, PersonAcceptedActivities},
+    objects::{DbUser, Person, PersonAcceptedActivities},
 };
 use activitypub_federation::{
     axum::{
