@@ -57,6 +57,13 @@ impl Note {
             if let html_parser::Node::Element(element) = node {
                 if element.name.eq_ignore_ascii_case("a") {
                     if let Some(Some(href)) = element.attributes.get("href") {
+                        // Ignore tag links
+                        if let Some(Some(rel)) = element.attributes.get("rel") {
+                            if rel.eq_ignore_ascii_case("tag") {
+                                continue;
+                            }
+                        }
+
                         if let Ok(url) = Url::parse(href) {
                             links.push(url);
                         }

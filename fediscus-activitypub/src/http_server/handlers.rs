@@ -73,6 +73,7 @@ enum LocalUserAcceptedActivities {
     Create(activities::CreateNote),
     Like(apub::Like),
     UndoLike(apub::UndoLike),
+    DeleteNote(apub::DeleteNote),
 }
 
 pub async fn get_user(

@@ -1,5 +1,5 @@
 use crate::activities::{FollowError, LikeError, UndoFollowError};
-use crate::storage::{Account, Storage};
+use crate::storage::{Account, NoteError, Storage};
 use crate::FederationData;
 use crate::{apub::Follow, db::Uri};
 use activitypub_federation::config::Data;
@@ -25,4 +25,5 @@ pub trait ActivityPubService: Send + Sync + 'static {
 
     async fn like_post(&self, post_uri: Uri) -> Result<(), LikeError>;
     async fn unlike_post(&self, post_uri: Uri) -> Result<(), LikeError>;
+    async fn delete_note(&self, note_uri: Uri) -> Result<(), NoteError>;
 }

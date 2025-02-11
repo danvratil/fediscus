@@ -1,7 +1,7 @@
 use crate::activities::{FollowError, LikeError, UndoFollowError};
 use crate::apub::{AcceptFollow, Follow, UndoFollow};
 use crate::db::Uri;
-use crate::storage::{Account, Storage};
+use crate::storage::{Account, NoteError, Storage};
 use crate::FederationData;
 use activitypub_federation::config::Data;
 use activitypub_federation::traits::{Actor, Object};
@@ -131,6 +131,16 @@ impl ActivityPubService for Service {
 
     async fn unlike_post(&self, post_uri: Uri) -> Result<(), LikeError> {
         self.storage.unlike_post(&post_uri).await?;
+        Ok(())
+    }
+
+    async fn delete_note(&self, note_uri: Uri) -> Result<(), NoteError> {
+        let post = self.storage.post_by_uri(&note_uri).await?;
+        if let Some(post) = post {
+            self.storage.delete_post_by_id(post.id).await?;
+        } else {
+            info!("DeleteNote: note not found");
+        }
         Ok(())
     }
 }

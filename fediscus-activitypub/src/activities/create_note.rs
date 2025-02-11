@@ -63,7 +63,7 @@ impl APubNote {
             .storage()
             .new_blog(blog_url)
             .await
-            .map_err(|e| ActivityError::NoteError(e.into()))?;
+            .map_err(|e| ActivityError::CreateNoteError(e.into()))?;
 
         data.service
             .storage()
@@ -75,7 +75,7 @@ impl APubNote {
                 blog.id,
             )
             .await
-            .map_err(|e| ActivityError::NoteError(e.into()))?;
+            .map_err(|e| ActivityError::CreateNoteError(e.into()))?;
 
         Ok(())
     }
@@ -97,7 +97,7 @@ impl APubNote {
                 parent_note.blog_id,
             )
             .await
-            .map_err(|e| ActivityError::NoteError(e.into()))?;
+            .map_err(|e| ActivityError::CreateNoteError(e.into()))?;
         Ok(())
     }
 }
@@ -149,7 +149,7 @@ impl ActivityHandler for CreateNote {
                 {
                     Ok(Some(note)) => Some(note), // Parent exists locally
                     Ok(None) => None,             // Parent doesn't exist locally - ignor this reply
-                    Err(err) => return Err(ActivityError::NoteError(err.into())), // Something went wrong
+                    Err(err) => return Err(ActivityError::CreateNoteError(err.into())), // Something went wrong
                 }
             }
             None => None, // OK, this is a top-level note
