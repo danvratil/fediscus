@@ -10,3 +10,4 @@ mod objects;
 mod utils;
 
 pub use instance::{listen, new_instance, DatabaseHandle};
+pub use objects::DbPost;

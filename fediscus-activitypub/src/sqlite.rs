@@ -584,4 +584,12 @@ impl NoteStorage for SqliteStorage {
             .map_err(NoteError::SqlError)?;
         Ok(())
     }
+
+    async fn post_count(&self) -> Result<usize, NoteError> {
+        let count = sqlx::query_scalar!(r#"SELECT COUNT(*) FROM notes"#)
+            .fetch_one(&self.db)
+            .await
+            .map_err(NoteError::SqlError)?;
+        Ok(count as usize)
+    }
 }

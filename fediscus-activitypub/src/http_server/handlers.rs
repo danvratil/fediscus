@@ -26,6 +26,7 @@ use serde::{Deserialize, Serialize};
 use tracing::error;
 use url::Url;
 
+use crate::activities;
 use crate::apub;
 use crate::{storage, AppState, FederationData};
 
@@ -69,6 +70,7 @@ enum LocalUserAcceptedActivities {
     Accept(apub::AcceptFollow),
     Reject(apub::RejectFollow),
     Undo(apub::UndoFollow),
+    Create(activities::CreateNote),
 }
 
 pub async fn get_user(

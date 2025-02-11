@@ -38,6 +38,7 @@ pub enum ActivityError {
 use url::Url;
 use uuid::Uuid;
 
+pub use create_note::CreateNote;
 pub use follow::FollowError;
 pub use undo_follow::UndoFollowError;
 

@@ -715,6 +715,7 @@ dependencies = [
  "html_parser",
  "hyperx",
  "rand 0.9.0",
+ "regex",
  "rsa",
  "serde",
  "serde_json",

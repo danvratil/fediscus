@@ -5,13 +5,17 @@
 
 use activitypub_federation::config::Data;
 use activitypub_federation::error::Error as FederationError;
+use activitypub_federation::fetch::object_id::ObjectId;
+use activitypub_federation::kinds::activity::CreateType;
 use activitypub_federation::traits::ActivityHandler;
 use async_trait::async_trait;
+use serde::{Deserialize, Serialize};
 use thiserror::Error;
+use tracing::{debug, info, instrument};
 use url::Url;
 
 use crate::apub::Note as APubNote;
-use crate::storage::{Account, Note, NoteError};
+use crate::storage::{self, Account, Note};
 
 use super::ActivityError;
 
@@ -29,6 +33,7 @@ pub enum CreateNoteError {
 }
 
 impl APubNote {
+    #[instrument(name="create_note_top_level", skip_all, fields(actor=%account.uri, object=%self.id.inner()))]
     async fn handle_top_level_note(
         &self,
         data: &Data<crate::FederationData>,
@@ -36,6 +41,7 @@ impl APubNote {
     ) -> Result<(), ActivityError> {
         // A top-level note must contain the #fediscus tag, otherwise it's not interesting to us
         if !self.has_tag() {
+            debug!("Note does not have #fediscus tag, ignoring");
             return Ok(());
         }
 
@@ -44,6 +50,7 @@ impl APubNote {
             .map_err(|_| CreateNoteError::ContentError)?;
         // And it must have at least one link to the blog post, duh!
         if urls.is_empty() {
+            debug!("Note does not have any links, ignoring");
             return Ok(());
         }
 
@@ -73,6 +80,7 @@ impl APubNote {
         Ok(())
     }
 
+    #[instrument(name="create_note_reply", skip_all, fields(actor=%account.uri, object=%self.id.inner()))]
     async fn handle_reply_note(
         &self,
         data: &Data<crate::FederationData>,
@@ -85,7 +93,7 @@ impl APubNote {
                 account.id,
                 self.id.inner().clone().into(),
                 Some(parent_note.id),
-                parent_note.root_id,
+                parent_note.root_id.or(Some(parent_note.id)),
                 parent_note.blog_id,
             )
             .await
@@ -94,8 +102,17 @@ impl APubNote {
     }
 }
 
+#[derive(Clone, Deserialize, Serialize, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct CreateNote {
+    r#type: CreateType,
+    actor: ObjectId<storage::Account>,
+    id: ObjectId<storage::Note>,
+    object: APubNote,
+}
+
 #[async_trait]
-impl ActivityHandler for APubNote {
+impl ActivityHandler for CreateNote {
     type DataType = crate::FederationData;
     type Error = ActivityError;
 
@@ -104,7 +121,7 @@ impl ActivityHandler for APubNote {
     }
 
     fn actor(&self) -> &Url {
-        self.attributed_to.inner()
+        self.actor.inner()
     }
 
     async fn verify(&self, _data: &Data<Self::DataType>) -> Result<(), Self::Error> {
@@ -113,28 +130,38 @@ impl ActivityHandler for APubNote {
         Ok(())
     }
 
+    #[instrument(name="create_note_receive", skip_all, fields(actor=%self.actor.inner(), object=%self.object.id.inner()))]
     async fn receive(self, data: &Data<Self::DataType>) -> Result<(), Self::Error> {
-        let account = self.attributed_to.dereference(data).await?;
+        info!("Received note from {}", self.actor.inner());
+        let account = self.object.attributed_to.dereference(data).await?;
         // Figure out whether this note is a reply or top-level note. Reply must be a reply
         // to a known top-level note.
-        let parent_note = match &self.in_reply_to {
+        let parent_note = match &self.object.in_reply_to {
             // Only try to dereference the reply locally - if it's not found it means that this
             // note is a reply to a note that we did not consider interesting, so we can just ignore it.
-            Some(id) => match id.dereference_local(data).await {
-                Ok(note) => Some(note), // Parent exists locally
-                Err(NoteError::ActivityError(FederationError::NotFound)) => {
-                    return Ok(()); // Parent doesn't exist locally -> OK, we just ignore this entire conversation
+            Some(id) => {
+                match data
+                    .app_data()
+                    .service
+                    .storage()
+                    .post_by_uri(&id.inner().clone().into())
+                    .await
+                {
+                    Ok(Some(note)) => Some(note), // Parent exists locally
+                    Ok(None) => None,             // Parent doesn't exist locally - ignor this reply
+                    Err(err) => return Err(ActivityError::NoteError(err.into())), // Something went wrong
                 }
-                Err(err) => {
-                    return Err(ActivityError::NoteError(err.into())); // Something went wrong
-                }
-            },
+            }
             None => None, // OK, this is a top-level note
         };
 
         match parent_note {
-            Some(parent_note) => self.handle_reply_note(data, &account, &parent_note).await,
-            None => self.handle_top_level_note(data, &account).await,
+            Some(parent_note) => {
+                self.object
+                    .handle_reply_note(data, &account, &parent_note)
+                    .await
+            }
+            None => self.object.handle_top_level_note(data, &account).await,
         }
     }
 }

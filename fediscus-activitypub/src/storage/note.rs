@@ -98,4 +98,6 @@ pub trait NoteStorage {
     async fn post_by_uri(&self, url: &Uri) -> Result<Option<Note>, NoteError>;
 
     async fn delete_post_by_id(&self, id: NoteId) -> Result<(), NoteError>;
+
+    async fn post_count(&self) -> Result<usize, NoteError>;
 }

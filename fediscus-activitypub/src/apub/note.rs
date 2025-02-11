@@ -3,15 +3,18 @@
 //
 // SPDX-License-Identifier: MIT
 
+use std::sync::LazyLock;
+
 use activitypub_federation::{fetch::object_id::ObjectId, kinds::object::NoteType};
 use chrono::{DateTime, Utc};
 use html_parser::Dom;
-use serde::Deserialize;
+use regex::Regex;
+use serde::{Deserialize, Serialize};
 use url::Url;
 
 use crate::storage;
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Tag {
     pub r#type: String,
@@ -19,16 +22,17 @@ pub struct Tag {
     pub name: String,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Note {
     pub r#type: NoteType,
     pub id: ObjectId<storage::Note>,
     pub in_reply_to: Option<ObjectId<storage::Note>>,
-    pub published: DateTime<Utc>,
-    pub url: Url,
+    pub published: Option<DateTime<Utc>>,
+    pub url: Option<Url>,
     pub attributed_to: ObjectId<storage::Account>,
     pub content: String,
+    #[serde(default)]
     pub tag: Vec<Tag>,
 }
 
@@ -36,7 +40,7 @@ impl Note {
     pub fn has_tag(&self) -> bool {
         self.tag.iter().any(|tag| {
             tag.r#type.eq_ignore_ascii_case("hashtag") && tag.name.eq_ignore_ascii_case("#fediscus")
-        })
+        }) || self.content.contains("#fediscus")
     }
 
     /// Retrieves all the hyperlinks (URLs) from the HTML content.
@@ -63,6 +67,12 @@ impl Note {
                 }
             }
         }
+
+        // Fallback to simply looking for an HTTP(s) URL in the content
+        static RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"https?://[^\s]+").unwrap());
+        RE.find_iter(&self.content)
+            .filter_map(|m| Url::parse(m.as_str()).ok())
+            .for_each(|url| links.push(url));
 
         Ok(links)
     }

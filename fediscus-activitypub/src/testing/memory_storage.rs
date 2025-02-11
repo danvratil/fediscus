@@ -422,6 +422,10 @@ impl NoteStorage for MemoryStorage {
             Err(NoteError::NotFound)
         }
     }
+
+    async fn post_count(&self) -> Result<usize, NoteError> {
+        Ok(self.notes.lock().await.len())
+    }
 }
 
 impl Storage for MemoryStorage {}

@@ -17,6 +17,7 @@ pub struct DbPost {
     pub ap_id: ObjectId<DbPost>,
     pub creator: ObjectId<DbUser>,
     pub local: bool,
+    pub in_reply_to: Option<ObjectId<DbPost>>,
 }
 
 impl DbPost {
@@ -27,6 +28,22 @@ impl DbPost {
             ap_id,
             creator,
             local: true,
+            in_reply_to: None,
+        })
+    }
+
+    pub fn new_reply(
+        text: String,
+        creator: ObjectId<DbUser>,
+        in_reply_to: ObjectId<DbPost>,
+    ) -> Result<DbPost, Error> {
+        let ap_id = generate_object_id(creator.inner().domain().unwrap())?.into();
+        Ok(DbPost {
+            text,
+            ap_id,
+            creator,
+            local: true,
+            in_reply_to: Some(in_reply_to),
         })
     }
 }
@@ -41,6 +58,7 @@ pub struct Note {
     #[serde(deserialize_with = "deserialize_one_or_many")]
     pub(crate) to: Vec<Url>,
     content: String,
+    in_reply_to: Option<ObjectId<DbPost>>,
 }
 
 #[async_trait::async_trait]
@@ -69,6 +87,7 @@ impl Object for DbPost {
             attributed_to: self.creator,
             to: vec![public(), creator.followers_url()?],
             content: self.text,
+            in_reply_to: self.in_reply_to,
         })
     }
 
@@ -87,6 +106,7 @@ impl Object for DbPost {
             ap_id: json.id,
             creator: json.attributed_to,
             local: false,
+            in_reply_to: json.in_reply_to,
         };
 
         let mut lock = data.posts.lock().unwrap();
