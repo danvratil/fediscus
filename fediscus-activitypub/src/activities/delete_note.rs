@@ -3,10 +3,8 @@
 // SPDX-License-Identifier: MIT
 
 use activitypub_federation::config::Data;
-use activitypub_federation::error::Error as FederationError;
 use activitypub_federation::traits::ActivityHandler;
 use async_trait::async_trait;
-use thiserror::Error;
 use tracing::{info, instrument};
 use url::Url;
 
@@ -14,15 +12,6 @@ use crate::apub::DeleteNote;
 use crate::FederationData;
 
 use super::ActivityError;
-
-#[derive(Debug, Error)]
-#[allow(clippy::enum_variant_names)]
-pub enum DeleteNoteError {
-    #[error("Activity error: {0}")]
-    ActivityError(#[from] FederationError),
-    #[error("Note error: {0}")]
-    NoteError(#[from] crate::storage::NoteError),
-}
 
 #[async_trait]
 impl ActivityHandler for DeleteNote {
@@ -48,7 +37,7 @@ impl ActivityHandler for DeleteNote {
         data.service
             .delete_note(self.object.id.into())
             .await
-            .map_err(|e| ActivityError::DeleteNoteError(e.into()))?;
+            .map_err(|e| ActivityError::storage(e, "Failed to delete note"))?;
         Ok(())
     }
 }

@@ -5,11 +5,9 @@
 
 use activitypub_federation::activity_queue::queue_activity;
 use activitypub_federation::config::Data;
-use activitypub_federation::error::Error as FederationError;
 use activitypub_federation::protocol::context::WithContext;
 use activitypub_federation::traits::ActivityHandler;
 use async_trait::async_trait;
-use thiserror::Error;
 use tracing::{info, instrument};
 use url::Url;
 
@@ -18,18 +16,6 @@ use crate::{storage, FederationData};
 
 use super::{generate_activity_id, ActivityError};
 
-#[derive(Error, Debug)]
-pub enum AcceptError {
-    #[error("Error creating follow: {0}")]
-    FollowError(#[from] storage::FollowError),
-    #[error("SQL error: {0}")]
-    SqlError(#[from] sqlx::Error),
-    #[error("Received acceptance of an unknown follow request")]
-    UnknownActivity,
-    #[error("Failed to send AcceptFollow: {0}")]
-    SendError(#[from] FederationError),
-}
-
 impl AcceptFollow {
     #[instrument(skip_all)]
     pub async fn send(
@@ -37,15 +23,15 @@ impl AcceptFollow {
         inbox: Url,
         object: Follow,
         data: &Data<FederationData>,
-    ) -> Result<(), AcceptError> {
+    ) -> Result<(), ActivityError> {
         let accept = WithContext::new_default(AcceptFollow::new(
             actor.uri.clone().into(),
             object,
-            generate_activity_id(data),
+            generate_activity_id(data)?,
         ));
         queue_activity(&accept, actor, vec![inbox], data)
             .await
-            .map_err(AcceptError::SendError)
+            .map_err(|e| ActivityError::federation(e, "Failed to send AcceptFollow"))
     }
 }
 
@@ -62,22 +48,19 @@ impl ActivityHandler for AcceptFollow {
         self.actor.inner()
     }
 
-    async fn verify(&self, data: &Data<Self::DataType>) -> Result<(), Self::Error> {
-        self.object
-            .id
-            .dereference_local(data)
-            .await
-            .map_err(AcceptError::FollowError)?;
+    async fn verify(&self, _data: &Data<Self::DataType>) -> Result<(), Self::Error> {
         Ok(())
     }
 
+    #[instrument(name = "receive_accept_follow", skip_all, fields(actor=%self.actor))]
     async fn receive(self, data: &Data<Self::DataType>) -> Result<(), Self::Error> {
-        info!("User {:?} accepted our follow request", self.actor);
+        info!("Received follow acceptance from {}", self.actor);
 
-        let uri = self.object.id;
         data.service
-            .handle_follow_accepted(uri.inner().clone().into())
-            .await?;
+            .handle_follow_accepted(self.object.id.inner().clone().into())
+            .await
+            .map_err(|e| ActivityError::processing(e, "Failed to handle follow acceptance"))?;
+
         Ok(())
     }
 }

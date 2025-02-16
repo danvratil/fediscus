@@ -1,24 +1,13 @@
 use activitypub_federation::config::Data;
-use activitypub_federation::error::Error as FederationError;
 use activitypub_federation::traits::ActivityHandler;
 use async_trait::async_trait;
-use thiserror::Error;
 use tracing::instrument;
 use url::Url;
 
 use crate::apub::Like;
-use crate::{storage, FederationData};
+use crate::FederationData;
 
 use super::ActivityError;
-
-#[derive(Error, Debug)]
-#[allow(clippy::enum_variant_names)]
-pub enum LikeError {
-    #[error("Activity error {0}")]
-    ActivityError(#[from] FederationError),
-    #[error("Post error: {0}")]
-    NoteError(#[from] storage::NoteError),
-}
 
 #[async_trait]
 impl ActivityHandler for Like {
@@ -41,7 +30,8 @@ impl ActivityHandler for Like {
     async fn receive(self, data: &Data<Self::DataType>) -> Result<(), Self::Error> {
         data.service
             .like_post(self.object.inner().clone().into())
-            .await?;
+            .await
+            .map_err(|e| ActivityError::processing(e, "Failed to process like"))?;
         Ok(())
     }
 }

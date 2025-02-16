@@ -1,4 +1,4 @@
-use crate::activities::{FollowError, LikeError, UndoFollowError};
+use crate::activities::ActivityError;
 use crate::apub::{AcceptFollow, Follow, UndoFollow};
 use crate::db::Uri;
 use crate::storage::{Account, NoteError, Storage};
@@ -28,18 +28,18 @@ impl ActivityPubService for Service {
         self.storage.as_ref()
     }
 
-    async fn handle_follow_accepted(&self, follow_uri: Uri) -> Result<(), FollowError> {
+    async fn handle_follow_accepted(&self, follow_uri: Uri) -> Result<(), ActivityError> {
         self.storage
             .follow_accepted(&follow_uri)
             .await
-            .map_err(Into::into)
+            .map_err(|e| ActivityError::storage(e, "Failed to accept follow"))
     }
 
-    async fn handle_follow_rejected(&self, follow_uri: Uri) -> Result<(), FollowError> {
+    async fn handle_follow_rejected(&self, follow_uri: Uri) -> Result<(), ActivityError> {
         self.storage
             .delete_follow_by_uri(&follow_uri)
             .await
-            .map_err(Into::into)
+            .map_err(|e| ActivityError::storage(e, "Failed to reject follow"))
     }
 
     async fn handle_follow_request(
@@ -48,7 +48,7 @@ impl ActivityPubService for Service {
         object: Account,
         follow: Follow,
         data: &Data<FederationData>,
-    ) -> Result<(), FollowError> {
+    ) -> Result<(), ActivityError> {
         // Create a new follow in complete state
         self.storage
             .new_follow(
@@ -57,11 +57,11 @@ impl ActivityPubService for Service {
                 &follow.id.inner().clone().into(),
                 false,
             )
-            .await?;
-
-        AcceptFollow::send(&object, actor.shared_inbox_or_inbox(), follow, data)
             .await
-            .map_err(FollowError::AcceptError)?;
+            .map_err(|e| ActivityError::storage(e, "Failed to create new follow"))?;
+
+        AcceptFollow::send(&object, actor.shared_inbox_or_inbox(), follow, data).await?;
+
         Follow::send(&object, &actor, data).await?;
 
         Ok(())
@@ -71,12 +71,20 @@ impl ActivityPubService for Service {
         &self,
         follow_uri: Uri,
         data: &Data<FederationData>,
-    ) -> Result<(), UndoFollowError> {
+    ) -> Result<(), ActivityError> {
         // Find the original follow that is being undone
-        let follow = self.storage.follow_by_uri(&follow_uri).await?;
+        let follow = self
+            .storage
+            .follow_by_uri(&follow_uri)
+            .await
+            .map_err(|e| ActivityError::storage(e, "Failed to find follow"))?;
+
         // If we don't have one, we are good.
         let follow = if let Some(follow) = follow {
-            self.storage.delete_follow_by_id(follow.id).await?;
+            self.storage
+                .delete_follow_by_id(follow.id)
+                .await
+                .map_err(|e| ActivityError::storage(e, "Failed to delete follow"))?;
             follow
         } else {
             info!("UndoFollow: received Undo for non-existent Follow");
@@ -105,18 +113,24 @@ impl ActivityPubService for Service {
         let follow_back = self
             .storage
             .follow_by_ids(follow.target_account_id, follow.account_id)
-            .await?;
+            .await
+            .map_err(|e| ActivityError::storage(e, "Failed to find follow back"))?;
         if let Some(follow_back) = follow_back {
             // Let the actor know we've unfollowed them as well
             UndoFollow::send(
                 &object,
-                follow_back.clone().into_json(data).await?,
+                follow_back.clone().into_json(data).await.map_err(|e| {
+                    ActivityError::storage(e, "Failed to convert follow back to json")
+                })?,
                 actor.shared_inbox_or_inbox(),
                 data,
             )
             .await?;
 
-            self.storage.delete_follow_by_id(follow_back.id).await?;
+            self.storage
+                .delete_follow_by_id(follow_back.id)
+                .await
+                .map_err(|e| ActivityError::storage(e, "Failed to delete follow back"))?;
         } else {
             info!("UndoFollow: not sending Undo to user we don't follow");
         }
@@ -124,14 +138,18 @@ impl ActivityPubService for Service {
         Ok(())
     }
 
-    async fn like_post(&self, post_uri: Uri) -> Result<(), LikeError> {
-        self.storage.like_post(&post_uri).await?;
-        Ok(())
+    async fn like_post(&self, post_uri: Uri) -> Result<(), ActivityError> {
+        self.storage
+            .like_post(&post_uri)
+            .await
+            .map_err(|e| ActivityError::storage(e, "Failed to like post"))
     }
 
-    async fn unlike_post(&self, post_uri: Uri) -> Result<(), LikeError> {
-        self.storage.unlike_post(&post_uri).await?;
-        Ok(())
+    async fn unlike_post(&self, post_uri: Uri) -> Result<(), ActivityError> {
+        self.storage
+            .unlike_post(&post_uri)
+            .await
+            .map_err(|e| ActivityError::storage(e, "Failed to unlike post"))
     }
 
     async fn delete_note(&self, note_uri: Uri) -> Result<(), NoteError> {

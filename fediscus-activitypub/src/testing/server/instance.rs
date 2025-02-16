@@ -81,9 +81,21 @@ pub fn listen(config: &FederationConfig<DatabaseHandle>) -> Result<(), Error> {
 }
 
 impl Database {
+    /// Returns the first local user in the test instance.
+    ///
+    /// # Panics
+    ///
+    /// Will panic if:
+    /// - mutex lock is poisoned (indicates thread panic)
+    /// - no test users exist (indicates incorrect test setup)
     pub fn local_user(&self) -> DbUser {
-        let lock = self.users.lock().unwrap();
-        lock.first().unwrap().clone()
+        let lock = self
+            .users
+            .lock()
+            .expect("Failed to acquire users lock - mutex poisoned");
+        lock.first()
+            .expect("No test users found - did you forget to create one?")
+            .clone()
     }
 
     pub fn read_user(&self, name: &str) -> Result<DbUser, Error> {

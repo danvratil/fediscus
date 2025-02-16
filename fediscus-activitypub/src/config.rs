@@ -3,27 +3,66 @@
 //
 // SPDX-License-Identifier: MIT
 
+//! Configuration management for the Fediscus ActivityPub server
+//!
+//! This module handles all configuration options for the server, including
+//! HTTP server settings, client settings, and database configuration.
+//! Configuration can be loaded from files and environment variables.
+
 use serde::Deserialize;
+use thiserror::Error;
+use url::Url;
+
+#[derive(Error, Debug)]
+#[allow(clippy::enum_variant_names)]
+pub enum ConfigError {
+    #[error("Invalid listen address: {0}")]
+    InvalidListenAddress(String),
+    #[error("Invalid database URL: {0}")]
+    InvalidDatabaseUrl(String),
+    #[error("Pool size must be greater than 0")]
+    InvalidPoolSize,
+}
 
 const fn default_false() -> bool {
     false
+}
+
+const fn default_pool_size() -> u32 {
+    10
 }
 
 #[derive(Clone, Debug, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 /// The HTTP server configuration
 pub struct HttpServer {
-    /// The address and port to bind to
+    /// The address and port to bind to (format: "ip:port" or ":port")
     pub listen: String,
+}
+
+impl HttpServer {
+    /// Validates the server configuration
+    pub fn validate(&self) -> Result<(), ConfigError> {
+        // Basic validation of listen address format
+        if !self.listen.contains(':') {
+            return Err(ConfigError::InvalidListenAddress(
+                "Address must be in format 'ip:port' or ':port'".to_string(),
+            ));
+        }
+        Ok(())
+    }
 }
 
 #[derive(Clone, Debug, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 /// The HTTP client configuration
 pub struct HttpClient {
-    /// The user agent to use for requests
+    /// The user agent to use for requests. If not specified,
+    /// defaults to "fediscus-activitypub/VERSION"
     pub user_agent: Option<String>,
 
+    /// Whether to allow HTTP connections (default: false)
+    /// Should only be enabled for testing
     #[serde(default = "default_false")]
     pub allow_http: bool,
 }
@@ -33,9 +72,29 @@ pub struct HttpClient {
 /// The database configuration
 pub struct Database {
     /// The URL to connect to the database
+    /// Supports PostgreSQL URLs in format:
+    /// "postgres://user:pass@host:port/dbname"
     pub url: String,
+
     /// The maximum number of connections to keep in the pool
-    pub pool_size: Option<u32>,
+    /// Defaults to 10 if not specified
+    #[serde(default = "default_pool_size")]
+    pub pool_size: u32,
+}
+
+impl Database {
+    /// Validates the database configuration
+    pub fn validate(&self) -> Result<(), ConfigError> {
+        // Validate database URL
+        Url::parse(&self.url).map_err(|e| ConfigError::InvalidDatabaseUrl(e.to_string()))?;
+
+        // Validate pool size
+        if self.pool_size == 0 {
+            return Err(ConfigError::InvalidPoolSize);
+        }
+
+        Ok(())
+    }
 }
 
 #[derive(Clone, Debug, Deserialize)]

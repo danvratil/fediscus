@@ -33,15 +33,15 @@ impl RejectFollow {
         inbox: Url,
         object: Follow,
         data: &Data<FederationData>,
-    ) -> Result<(), RejectError> {
+    ) -> Result<(), ActivityError> {
         let accept = WithContext::new_default(RejectFollow::new(
             actor.uri.clone().into(),
             object,
-            generate_activity_id(data),
+            generate_activity_id(data)?,
         ));
         queue_activity(&accept, actor, vec![inbox], data)
             .await
-            .map_err(RejectError::SendError)
+            .map_err(|e| ActivityError::processing(e, "Failed to send RejectFollow"))
     }
 }
 
@@ -58,28 +58,19 @@ impl ActivityHandler for RejectFollow {
         self.actor.inner()
     }
 
-    async fn verify(&self, data: &Data<Self::DataType>) -> Result<(), Self::Error> {
-        self.object
-            .id
-            .dereference_local(data)
-            .await
-            .map_err(RejectError::FollowError)?;
+    async fn verify(&self, _data: &Data<Self::DataType>) -> Result<(), Self::Error> {
         Ok(())
     }
 
+    #[instrument(name = "receive_reject_follow", skip_all, fields(actor=%self.actor))]
     async fn receive(self, data: &Data<Self::DataType>) -> Result<(), Self::Error> {
-        info!("User {:?} rejected our follow request", self.actor);
-
-        let request = self
-            .object
-            .id
-            .dereference(data)
-            .await
-            .map_err(RejectError::FollowError)?;
+        info!("Received follow rejection from {}", self.actor);
 
         data.service
-            .handle_follow_rejected(request.uri.clone())
-            .await?;
+            .handle_follow_rejected(self.object.id.inner().clone().into())
+            .await
+            .map_err(|e| ActivityError::processing(e, "Failed to handle follow rejection"))?;
+
         Ok(())
     }
 }

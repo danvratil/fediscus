@@ -4,13 +4,11 @@
 // SPDX-License-Identifier: MIT
 
 use activitypub_federation::config::Data;
-use activitypub_federation::error::Error as FederationError;
 use activitypub_federation::fetch::object_id::ObjectId;
 use activitypub_federation::kinds::activity::CreateType;
 use activitypub_federation::traits::ActivityHandler;
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
-use thiserror::Error;
 use tracing::{debug, info, instrument};
 use url::Url;
 
@@ -18,19 +16,6 @@ use crate::apub::Note as APubNote;
 use crate::storage::{self, Account, Note};
 
 use super::ActivityError;
-
-#[derive(Debug, Error)]
-#[allow(clippy::enum_variant_names)]
-pub enum CreateNoteError {
-    #[error("Activity error: {0}")]
-    ActivityError(#[from] FederationError),
-    #[error("Note error: {0}")]
-    NoteError(#[from] crate::storage::NoteError),
-    #[error("Blog error: {0}")]
-    BlogError(#[from] crate::storage::BlogError),
-    #[error("Invalid note content")]
-    ContentError,
-}
 
 impl APubNote {
     #[instrument(name="create_note_top_level", skip_all, fields(actor=%account.uri, object=%self.id.inner()))]
@@ -47,7 +32,7 @@ impl APubNote {
 
         let urls = self
             .get_links()
-            .map_err(|_| CreateNoteError::ContentError)?;
+            .map_err(|_| ActivityError::invalid_data("Note does not have any links"))?;
         // And it must have at least one link to the blog post, duh!
         if urls.is_empty() {
             debug!("Note does not have any links, ignoring");
@@ -63,7 +48,7 @@ impl APubNote {
             .storage()
             .new_blog(blog_url)
             .await
-            .map_err(|e| ActivityError::CreateNoteError(e.into()))?;
+            .map_err(|e| ActivityError::storage(e, "Failed to create new blog"))?;
 
         data.service
             .storage()
@@ -75,7 +60,7 @@ impl APubNote {
                 blog.id,
             )
             .await
-            .map_err(|e| ActivityError::CreateNoteError(e.into()))?;
+            .map_err(|e| ActivityError::storage(e, "Failed to create new post"))?;
 
         Ok(())
     }
@@ -97,7 +82,7 @@ impl APubNote {
                 parent_note.blog_id,
             )
             .await
-            .map_err(|e| ActivityError::CreateNoteError(e.into()))?;
+            .map_err(|e| ActivityError::storage(e, "Failed to create new reply post"))?;
         Ok(())
     }
 }
@@ -109,6 +94,38 @@ pub struct CreateNote {
     actor: ObjectId<storage::Account>,
     id: ObjectId<storage::Note>,
     object: APubNote,
+}
+
+impl CreateNote {
+    /// Attempts to find the parent note if this is a reply
+    async fn find_parent_note(
+        &self,
+        data: &Data<<Self as ActivityHandler>::DataType>,
+    ) -> Result<Option<Note>, ActivityError> {
+        match &self.object.in_reply_to {
+            Some(id) => data
+                .app_data()
+                .service
+                .storage()
+                .post_by_uri(&id.inner().clone().into())
+                .await
+                .map_err(|e| ActivityError::storage(e, "Failed to find parent note")),
+            None => Ok(None),
+        }
+    }
+
+    /// Processes the note based on whether it's a reply or top-level note
+    async fn process_note(
+        self,
+        data: &Data<<Self as ActivityHandler>::DataType>,
+        account: &Account,
+        parent_note: Option<Note>,
+    ) -> Result<(), ActivityError> {
+        match parent_note {
+            Some(parent) => self.object.handle_reply_note(data, account, &parent).await,
+            None => self.object.handle_top_level_note(data, account).await,
+        }
+    }
 }
 
 #[async_trait]
@@ -130,38 +147,20 @@ impl ActivityHandler for CreateNote {
         Ok(())
     }
 
-    #[instrument(name="create_note_receive", skip_all, fields(actor=%self.actor.inner(), object=%self.object.id.inner()))]
+    /// Handles the receipt of a new note activity
+    ///
+    /// This function processes incoming notes, handling both top-level notes
+    /// and replies appropriately.
     async fn receive(self, data: &Data<Self::DataType>) -> Result<(), Self::Error> {
         info!("Received note from {}", self.actor.inner());
-        let account = self.object.attributed_to.dereference(data).await?;
-        // Figure out whether this note is a reply or top-level note. Reply must be a reply
-        // to a known top-level note.
-        let parent_note = match &self.object.in_reply_to {
-            // Only try to dereference the reply locally - if it's not found it means that this
-            // note is a reply to a note that we did not consider interesting, so we can just ignore it.
-            Some(id) => {
-                match data
-                    .app_data()
-                    .service
-                    .storage()
-                    .post_by_uri(&id.inner().clone().into())
-                    .await
-                {
-                    Ok(Some(note)) => Some(note), // Parent exists locally
-                    Ok(None) => None,             // Parent doesn't exist locally - ignor this reply
-                    Err(err) => return Err(ActivityError::CreateNoteError(err.into())), // Something went wrong
-                }
-            }
-            None => None, // OK, this is a top-level note
-        };
+        let account = self
+            .object
+            .attributed_to
+            .dereference(data)
+            .await
+            .map_err(|e| ActivityError::storage(e, "Failed to dereference actor"))?;
 
-        match parent_note {
-            Some(parent_note) => {
-                self.object
-                    .handle_reply_note(data, &account, &parent_note)
-                    .await
-            }
-            None => self.object.handle_top_level_note(data, &account).await,
-        }
+        let parent_note = self.find_parent_note(data).await?;
+        self.process_note(data, &account, parent_note).await
     }
 }

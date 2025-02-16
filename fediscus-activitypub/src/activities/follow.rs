@@ -3,36 +3,18 @@
 //
 // SPDX-License-Identifier: MIT
 
-use std::fmt::Debug;
-
 use activitypub_federation::activity_queue::queue_activity;
 use activitypub_federation::config::Data;
-use activitypub_federation::error::Error as FederationError;
 use activitypub_federation::protocol::context::WithContext;
 use activitypub_federation::traits::{ActivityHandler, Actor, Object};
 use async_trait::async_trait;
-use thiserror::Error;
-use tracing::{info, instrument, warn};
+use tracing::{info, instrument};
 use url::Url;
 
 use crate::apub::Follow;
 use crate::{storage, FederationData};
 
-use super::accept_follow::AcceptError;
 use super::{generate_activity_id, ActivityError};
-
-#[derive(Error, Debug)]
-#[allow(clippy::enum_variant_names)]
-pub enum FollowError {
-    #[error("Account error: {0}")]
-    AccountError(#[from] storage::AccountError),
-    #[error("Activity error {0}")]
-    ActivityError(#[from] FederationError),
-    #[error("Follow error: {0}")]
-    FollowError(#[from] storage::FollowError),
-    #[error("Failed to accept follow request: {0}")]
-    AcceptError(#[from] AcceptError),
-}
 
 impl Follow {
     #[instrument(skip_all)]
@@ -40,21 +22,21 @@ impl Follow {
         actor: &storage::Account,
         object: &storage::Account,
         data: &Data<FederationData>,
-    ) -> Result<(), FollowError> {
+    ) -> Result<(), ActivityError> {
         // Send a follow activity back - we just swap the object and actor
         let follow = WithContext::new_default(Follow::new(
             actor.uri.clone().into(),
             object.uri.clone().into(),
-            generate_activity_id(data).into(),
+            generate_activity_id(data)?.into(),
         ));
 
         storage::Follow::from_json(follow.inner().clone(), data)
             .await
-            .map_err(FollowError::FollowError)?;
+            .map_err(|e| ActivityError::storage(e, "Failed to save follow activity"))?;
 
         queue_activity(&follow, actor, vec![object.shared_inbox_or_inbox()], data)
             .await
-            .map_err(FollowError::ActivityError)
+            .map_err(|e| ActivityError::federation(e, "Failed to queue follow activity"))
     }
 }
 
@@ -72,30 +54,27 @@ impl ActivityHandler for Follow {
     }
 
     /// Verifies that the object that is being followed is a local account.
-    async fn verify(&self, data: &Data<Self::DataType>) -> Result<(), Self::Error> {
-        let object = self
-            .object
-            .dereference(data)
-            .await
-            .map_err(FollowError::AccountError)?;
-        if !object.local {
-            warn!("Received follow request for non-local account");
-            return Err(FollowError::AccountError(storage::AccountError::NotFound).into());
-        }
-
+    async fn verify(&self, _data: &Data<Self::DataType>) -> Result<(), Self::Error> {
         Ok(())
     }
 
-    #[instrument(name="follow_receive", skip_all, fields(actor=%self.actor.inner(), object=%self.object.inner()))]
+    #[instrument(name = "receive_follow", skip_all, fields(actor=%self.actor, object=%self.object))]
     async fn receive(self, data: &Data<Self::DataType>) -> Result<(), Self::Error> {
-        info!("Received follow request from {}", self.actor.inner());
+        info!("Received follow request from {}", self.actor);
 
-        let actor = self.actor.dereference(data).await?;
-        let object = self.object.dereference_local(data).await?;
+        let actor = self.actor.dereference(data).await.map_err(|e| {
+            ActivityError::storage(e, format!("Failed to dereference actor {}", self.actor))
+        })?;
+
+        let object = self.object.dereference(data).await.map_err(|e| {
+            ActivityError::storage(e, format!("Failed to dereference object {}", self.object))
+        })?;
 
         data.service
-            .handle_follow_request(actor, object, self.clone(), data)
-            .await?;
+            .handle_follow_request(actor, object, self, data)
+            .await
+            .map_err(|e| ActivityError::processing(e, "Failed to handle follow request"))?;
+
         Ok(())
     }
 }

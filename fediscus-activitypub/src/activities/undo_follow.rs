@@ -8,7 +8,6 @@ use activitypub_federation::config::Data;
 use activitypub_federation::protocol::context::WithContext;
 use activitypub_federation::traits::ActivityHandler;
 use async_trait::async_trait;
-use thiserror::Error;
 use tracing::{info, instrument};
 use url::Url;
 
@@ -17,17 +16,6 @@ use crate::{storage, FederationData};
 
 use super::{generate_activity_id, ActivityError};
 
-#[derive(Error, Debug)]
-#[allow(clippy::enum_variant_names)]
-pub enum UndoFollowError {
-    #[error("Account error: {0}")]
-    AccountError(#[from] storage::AccountError),
-    #[error("Activity error {0}")]
-    ActivityError(#[from] activitypub_federation::error::Error),
-    #[error("Follow error: {0}")]
-    FollowError(#[from] storage::FollowError),
-}
-
 impl UndoFollow {
     #[instrument(skip_all)]
     pub async fn send(
@@ -35,15 +23,15 @@ impl UndoFollow {
         follow: Follow,
         inbox: Url,
         data: &Data<FederationData>,
-    ) -> Result<(), UndoFollowError> {
+    ) -> Result<(), ActivityError> {
         let activity = WithContext::new_default(UndoFollow::new(
             actor.uri.clone().into(),
             follow,
-            generate_activity_id(data),
+            generate_activity_id(data)?,
         ));
         queue_activity(&activity, actor, vec![inbox], data)
             .await
-            .map_err(UndoFollowError::ActivityError)
+            .map_err(|e| ActivityError::processing(e, "Failed to send undo follow"))
     }
 }
 
@@ -64,12 +52,15 @@ impl ActivityHandler for UndoFollow {
         Ok(())
     }
 
+    #[instrument(name = "receive_undo_follow", skip_all, fields(actor=%self.actor))]
     async fn receive(self, data: &Data<Self::DataType>) -> Result<(), Self::Error> {
-        info!("Received UndoFollow from {}", self.actor);
+        info!("Received undo follow from {}", self.actor);
 
         data.service
-            .handle_follow_undone(self.object.id().clone().into(), data)
-            .await?;
+            .handle_follow_undone(self.object.id.inner().clone().into(), data)
+            .await
+            .map_err(|e| ActivityError::processing(e, "Failed to handle undo follow"))?;
+
         Ok(())
     }
 }

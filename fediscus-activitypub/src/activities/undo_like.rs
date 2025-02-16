@@ -8,25 +8,13 @@ use activitypub_federation::config::Data;
 use activitypub_federation::protocol::context::WithContext;
 use activitypub_federation::traits::ActivityHandler;
 use async_trait::async_trait;
-use thiserror::Error;
-use tracing::{info, instrument};
+use tracing::instrument;
 use url::Url;
 
 use crate::apub::{Like, UndoLike};
 use crate::{storage, FederationData};
 
 use super::{generate_activity_id, ActivityError};
-
-#[derive(Error, Debug)]
-#[allow(clippy::enum_variant_names)]
-pub enum UndoLikeError {
-    #[error("Account error: {0}")]
-    AccountError(#[from] storage::AccountError),
-    #[error("Activity error {0}")]
-    ActivityError(#[from] activitypub_federation::error::Error),
-    #[error("Note error: {0}")]
-    NoteError(#[from] storage::NoteError),
-}
 
 impl UndoLike {
     #[instrument(skip_all)]
@@ -35,15 +23,15 @@ impl UndoLike {
         like: Like,
         inbox: Url,
         data: &Data<FederationData>,
-    ) -> Result<(), UndoLikeError> {
+    ) -> Result<(), ActivityError> {
         let activity = WithContext::new_default(UndoLike::new(
             actor.uri.clone().into(),
             like,
-            generate_activity_id(data),
+            generate_activity_id(data)?,
         ));
         queue_activity(&activity, actor, vec![inbox], data)
             .await
-            .map_err(UndoLikeError::ActivityError)
+            .map_err(|e| ActivityError::federation(e, "Failed to queue activity"))
     }
 }
 
@@ -64,13 +52,12 @@ impl ActivityHandler for UndoLike {
         Ok(())
     }
 
-    #[instrument(name="undo_like_receive", skip_all, fields(actor=%self.actor.inner(), object=%self.object.id()))]
+    #[instrument(name="undo_like_receive", skip_all, fields(actor=%self.actor.inner(), object=%self.object.object.inner()))]
     async fn receive(self, data: &Data<Self::DataType>) -> Result<(), Self::Error> {
-        info!("Received UndoLike from {}", self.actor);
-
         data.service
-            .unlike_post(self.object.id().clone().into())
-            .await?;
+            .unlike_post(self.object.object.inner().clone().into())
+            .await
+            .map_err(|e| ActivityError::processing(e, "Failed to process unlike"))?;
         Ok(())
     }
 }

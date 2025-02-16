@@ -5,8 +5,12 @@
 
 use activitypub_federation::config::Data;
 use thiserror::Error;
+use url::Url;
+use uuid::Uuid;
 
-use crate::storage;
+pub use create_note::CreateNote;
+
+use crate::{storage, FederationData};
 
 mod accept_follow;
 mod create_note;
@@ -18,45 +22,110 @@ mod undo_follow;
 mod undo_like;
 
 #[derive(Error, Debug)]
-#[allow(clippy::enum_variant_names)]
 pub enum ActivityError {
-    #[error("Account error: {0}")]
-    AccountError(#[from] storage::AccountError),
-    #[error("Error handling incoming activity {0}")]
-    InboxError(#[from] activitypub_federation::error::Error),
-    #[error("Follow activity error {0}")]
-    FollowError(#[from] follow::FollowError),
-    #[error("Accept follow activity error {0}")]
-    AcceptError(#[from] accept_follow::AcceptError),
-    #[error("Reject follow activity error {0}")]
-    RejectError(#[from] reject_follow::RejectError),
-    #[error("Undo follow activity error {0}")]
-    UndoError(#[from] undo_follow::UndoFollowError),
-    #[error("Create note activity error {0}")]
-    CreateNoteError(#[from] create_note::CreateNoteError),
-    #[error("Delete note activity error {0}")]
-    DeleteNoteError(#[from] delete_note::DeleteNoteError),
-    #[error("Like activity error {0}")]
-    LikeError(#[from] like::LikeError),
-    #[error("Unknown error {0}")]
-    UnknownError(#[from] anyhow::Error),
+    #[error("Failed to process activity: {context}")]
+    Processing {
+        #[source]
+        source: Box<dyn std::error::Error + Send + Sync>,
+        context: String,
+    },
+
+    #[error("Activity verification failed: {context}")]
+    Verification {
+        #[source]
+        source: Box<dyn std::error::Error + Send + Sync>,
+        context: String,
+    },
+
+    #[error("Storage operation failed: {context}")]
+    Storage {
+        #[source]
+        source: Box<dyn std::error::Error + Send + Sync>,
+        context: String,
+    },
+
+    #[error("Federation protocol error: {context}")]
+    Federation {
+        #[source]
+        source: activitypub_federation::error::Error,
+        context: String,
+    },
+
+    #[error("Invalid activity data: {context}")]
+    InvalidData { context: String },
 }
 
-use url::Url;
-use uuid::Uuid;
+impl ActivityError {
+    pub fn processing<E>(error: E, context: impl Into<String>) -> Self
+    where
+        E: std::error::Error + Send + Sync + 'static,
+    {
+        Self::Processing {
+            source: Box::new(error),
+            context: context.into(),
+        }
+    }
 
-pub use create_note::CreateNote;
-pub use follow::FollowError;
-pub use like::LikeError;
-pub use undo_follow::UndoFollowError;
+    pub fn verification<E>(error: E, context: impl Into<String>) -> Self
+    where
+        E: std::error::Error + Send + Sync + 'static,
+    {
+        Self::Verification {
+            source: Box::new(error),
+            context: context.into(),
+        }
+    }
 
-use crate::FederationData;
+    pub fn storage<E>(error: E, context: impl Into<String>) -> Self
+    where
+        E: std::error::Error + Send + Sync + 'static,
+    {
+        Self::Storage {
+            source: Box::new(error),
+            context: context.into(),
+        }
+    }
 
-fn generate_activity_id(data: &Data<FederationData>) -> Url {
+    pub fn federation(
+        error: activitypub_federation::error::Error,
+        context: impl Into<String>,
+    ) -> Self {
+        Self::Federation {
+            source: error,
+            context: context.into(),
+        }
+    }
+
+    pub fn invalid_data(context: impl Into<String>) -> Self {
+        Self::InvalidData {
+            context: context.into(),
+        }
+    }
+}
+
+impl From<activitypub_federation::error::Error> for ActivityError {
+    fn from(e: activitypub_federation::error::Error) -> Self {
+        ActivityError::Federation {
+            source: e,
+            context: "Federation error".to_string(),
+        }
+    }
+}
+
+impl From<storage::AccountError> for ActivityError {
+    fn from(e: storage::AccountError) -> Self {
+        ActivityError::Storage {
+            source: Box::new(e),
+            context: "Account storage error".to_string(),
+        }
+    }
+}
+
+fn generate_activity_id(data: &Data<FederationData>) -> Result<Url, ActivityError> {
     let id = Uuid::new_v4();
     Url::parse(&format!(
         "https://{}/activity/{}",
         data.config.fediverse_user.host, id
     ))
-    .unwrap()
+    .map_err(|e| ActivityError::invalid_data(format!("Failed to generate activity ID: {}", e)))
 }
