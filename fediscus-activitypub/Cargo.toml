@@ -9,12 +9,13 @@ testing = []
 [dependencies]
 activitypub_federation = { path="../../activitypub-federation-rust", default-features = false, features = ["axum"] }
 #activitypub_federation = { version = "0.6", default-features = false, features = ["axum"] }
-anyhow = "1.0"
+anyhow = { workspace = true }
 async-trait = "0.1"
-axum = { version = "0.7", features = ["macros"] }
+axum = { workspace = true }
 chrono = { version = "0.4", features = ["serde"] }
-config = "0.15"
+config = { workspace = true }
 enum_delegate = "0.2"
+fediscus-common = { path = "../fediscus-common" }
 fediscus-database = { path = "../fediscus-database" }
 futures = "0.3"
 html_parser = "0.7"
@@ -23,17 +24,17 @@ html_parser = "0.7"
 hyperx = { git = "https://github.com/chantra/hyperx", branch = "semver" }
 # FIXME: Needed by testing module
 rand = "0.9"
-regex = "1.11.1"
+regex = "1.11"
 rsa = "0.9"
-serde = { version = "1.0", features = ["derive"] }
+serde = { workspace = true }
 # FIXME: Needed by testing module
 serde_json = "1.0"
-sqlx = { version = "0.8", features = ["chrono", "runtime-tokio", "sqlite", "tls-rustls"] }
-thiserror = "2.0"
-tokio = { version = "1.42", features = ["full"] }
-tower-http = { version = "0.6", features = ["trace"] }
-tracing = "0.1"
-tracing-subscriber = "0.3"
+sqlx = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true }
+tower-http = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
 url = "2.5"
 uuid = { version = "1.11", features = ["v4"] }
 

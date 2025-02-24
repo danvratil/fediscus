@@ -1,0 +1,12 @@
+[package]
+name = "fediscus-common"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+axum = { workspace = true }
+serde = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true }
+tower = "0.5.2"
+tower-http = { workspace = true }

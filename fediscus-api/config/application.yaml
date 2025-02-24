@@ -1,0 +1,9 @@
+http-server:
+  listen: "0.0.0.0:8889"
+
+database:
+  url: sqlite://db.sqlite3
+  pool-size: 5
+
+
+

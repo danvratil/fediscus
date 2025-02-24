@@ -9,6 +9,7 @@
 //! HTTP server settings, client settings, and database configuration.
 //! Configuration can be loaded from files and environment variables.
 
+use fediscus_common::http_server::{HttpServerConfig, HttpServerConfigError};
 use serde::Deserialize;
 use thiserror::Error;
 use url::Url;
@@ -16,8 +17,8 @@ use url::Url;
 #[derive(Error, Debug)]
 #[allow(clippy::enum_variant_names)]
 pub enum ConfigError {
-    #[error("Invalid listen address: {0}")]
-    InvalidListenAddress(String),
+    #[error("Error in HTTP server configuration: {0}")]
+    HttpServerConfigurationError(HttpServerConfigError),
     #[error("Invalid database URL: {0}")]
     InvalidDatabaseUrl(String),
     #[error("Pool size must be greater than 0")]
@@ -30,27 +31,6 @@ const fn default_false() -> bool {
 
 const fn default_pool_size() -> u32 {
     10
-}
-
-#[derive(Clone, Debug, Deserialize)]
-#[serde(rename_all = "kebab-case")]
-/// The HTTP server configuration
-pub struct HttpServer {
-    /// The address and port to bind to (format: "ip:port" or ":port")
-    pub listen: String,
-}
-
-impl HttpServer {
-    /// Validates the server configuration
-    pub fn validate(&self) -> Result<(), ConfigError> {
-        // Basic validation of listen address format
-        if !self.listen.contains(':') {
-            return Err(ConfigError::InvalidListenAddress(
-                "Address must be in format 'ip:port' or ':port'".to_string(),
-            ));
-        }
-        Ok(())
-    }
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -118,7 +98,7 @@ pub struct FediverseUser {
 /// The main configuration struct
 pub struct Config {
     /// The HTTP server configuration
-    pub http_server: HttpServer,
+    pub http_server: HttpServerConfig,
     /// The HTTP client configuration
     pub http_client: HttpClient,
     /// The database configuration
@@ -133,10 +113,19 @@ impl Config {
     }
 
     pub fn load_from(path: &str) -> Result<Self, config::ConfigError> {
-        config::Config::builder()
+        let cfg: Config = config::Config::builder()
             .add_source(config::File::with_name(path))
             .add_source(config::Environment::with_prefix("FEDISCUS"))
             .build()?
-            .try_deserialize()
+            .try_deserialize()?;
+
+        cfg.http_server
+            .validate()
+            .map_err(|e| config::ConfigError::Message(e.to_string()))?;
+        cfg.database
+            .validate()
+            .map_err(|e| config::ConfigError::Message(e.to_string()))?;
+
+        Ok(cfg)
     }
 }
